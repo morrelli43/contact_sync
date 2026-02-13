@@ -42,3 +42,12 @@ config.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Contact sync data files
+webform_contacts.json
+sync_state.json
+contacts_export.json
+demo_contacts.json
+demo_sync_state.json
+token.json
+credentials.json

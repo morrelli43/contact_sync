@@ -93,6 +93,12 @@ def main():
         help='Port for web form server (default: 5000)'
     )
     
+    parser.add_argument(
+        '--host',
+        default='127.0.0.1',
+        help='Host for web form server (default: 127.0.0.1). Use 0.0.0.0 to expose on all interfaces.'
+    )
+    
     args = parser.parse_args()
     
     # Load configuration
@@ -145,7 +151,8 @@ def main():
         filename = args.file or 'contacts_export.json'
         # First sync to get latest data
         if engine.connectors:
-            engine.fetch_all_contacts()
+            source_contacts = engine.fetch_all_contacts()
+            engine.merge_contacts(source_contacts)
         engine.export_contacts(filename)
     
     elif args.command == 'import':
@@ -166,7 +173,7 @@ def main():
             sys.exit(1)
         
         webform = engine.connectors['webform']
-        webform.run(port=args.port)
+        webform.run(host=args.host, port=args.port)
 
 
 if __name__ == '__main__':

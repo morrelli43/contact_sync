@@ -26,6 +26,10 @@ class GoogleContactsConnector:
         if not GOOGLE_AVAILABLE:
             raise ImportError("Google API libraries not installed. Run: pip install -r requirements.txt")
         
+        # Validate file paths to prevent directory traversal
+        if '..' in credentials_file or '..' in token_file:
+            raise ValueError("Invalid file path: directory traversal not allowed")
+        
         self.credentials_file = credentials_file
         self.token_file = token_file
         self.service = None

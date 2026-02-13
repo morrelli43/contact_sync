@@ -22,8 +22,13 @@ class WebFormConnector:
     def _load_contacts(self):
         """Load contacts from storage file."""
         if os.path.exists(self.storage_file):
-            with open(self.storage_file, 'r') as f:
-                self.stored_contacts = json.load(f)
+            try:
+                with open(self.storage_file, 'r') as f:
+                    self.stored_contacts = json.load(f)
+            except json.JSONDecodeError as e:
+                print(f"Warning: Could not parse {self.storage_file}: {e}")
+                print("Starting with empty contact list.")
+                self.stored_contacts = []
         else:
             self.stored_contacts = []
     
@@ -70,7 +75,7 @@ class WebFormConnector:
         self._load_contacts()
         contacts = []
         
-        for idx, data in enumerate(self.stored_contacts):
+        for data in self.stored_contacts:
             contact = Contact()
             contact.first_name = data.get('first_name')
             contact.last_name = data.get('last_name')
@@ -79,18 +84,26 @@ class WebFormConnector:
             contact.company = data.get('company')
             contact.notes = data.get('notes')
             
-            # Use index as source ID
-            contact.source_ids['webform'] = str(idx)
-            
+            # Use timestamp as source ID to ensure uniqueness
             if 'timestamp' in data:
+                contact.source_ids['webform'] = data['timestamp']
                 contact.last_modified = datetime.fromisoformat(data['timestamp'])
             
             contacts.append(contact)
         
         return contacts
     
-    def run(self, host: str = '0.0.0.0', port: int = 5000):
-        """Run the web form server."""
+    def run(self, host: str = '127.0.0.1', port: int = 5000):
+        """Run the web form server.
+        
+        Args:
+            host: Host to bind to. Defaults to '127.0.0.1' (localhost only).
+                  Use '0.0.0.0' to expose on all network interfaces (security risk).
+            port: Port number to listen on.
+        """
+        if host == '0.0.0.0':
+            print("WARNING: Binding to 0.0.0.0 exposes the server to all network interfaces!")
+            print("This is a security risk. Only use in controlled environments.")
         print(f"Starting web form server on http://{host}:{port}")
         self.app.run(host=host, port=port, debug=False)
 
@@ -175,28 +188,28 @@ CONTACT_FORM_HTML = """
         <h1>Contact Submission Form</h1>
         <form id="contactForm">
             <div class="form-group">
-                <label>First Name <span class="required">*</span></label>
-                <input type="text" name="first_name" required>
+                <label for="first_name">First Name <span class="required">*</span></label>
+                <input type="text" id="first_name" name="first_name" required>
             </div>
             <div class="form-group">
-                <label>Last Name <span class="required">*</span></label>
-                <input type="text" name="last_name" required>
+                <label for="last_name">Last Name <span class="required">*</span></label>
+                <input type="text" id="last_name" name="last_name" required>
             </div>
             <div class="form-group">
-                <label>Email <span class="required">*</span></label>
-                <input type="email" name="email" required>
+                <label for="email">Email <span class="required">*</span></label>
+                <input type="email" id="email" name="email" required>
             </div>
             <div class="form-group">
-                <label>Phone</label>
-                <input type="tel" name="phone">
+                <label for="phone">Phone</label>
+                <input type="tel" id="phone" name="phone">
             </div>
             <div class="form-group">
-                <label>Company</label>
-                <input type="text" name="company">
+                <label for="company">Company</label>
+                <input type="text" id="company" name="company">
             </div>
             <div class="form-group">
-                <label>Notes</label>
-                <textarea name="notes"></textarea>
+                <label for="notes">Notes</label>
+                <textarea id="notes" name="notes"></textarea>
             </div>
             <button type="submit">Submit Contact</button>
             <div id="message" class="message"></div>

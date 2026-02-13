@@ -173,6 +173,7 @@ class SquareConnector:
         
         # Notes
         if contact.notes:
-            customer['note'] = contact.notes[:500]  # Square has a limit
+            # Square API has a 500 character limit for customer notes
+            customer['note'] = contact.notes[:500]
         
         return customer

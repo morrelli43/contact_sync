@@ -107,9 +107,9 @@ class SyncEngine:
         for source_name, connector in self.connectors.items():
             print(f"Pushing to {source_name}...")
             
-            # Skip webform as it's input-only by default
-            if source_name == 'webform':
-                print(f"  Skipping {source_name} (input-only source)")
+            # Skip if connector doesn't support pushing (no push_contact method)
+            if not hasattr(connector, 'push_contact'):
+                print(f"  Skipping {source_name} (no push support)")
                 continue
             
             pushed = 0
@@ -117,11 +117,10 @@ class SyncEngine:
             
             for contact in contacts:
                 try:
-                    if hasattr(connector, 'push_contact'):
-                        if connector.push_contact(contact):
-                            pushed += 1
-                        else:
-                            errors += 1
+                    if connector.push_contact(contact):
+                        pushed += 1
+                    else:
+                        errors += 1
                 except Exception as e:
                     print(f"  Error pushing contact: {e}")
                     errors += 1

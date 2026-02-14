@@ -201,7 +201,7 @@ class ContactStore:
             if not addr.get('state'):
                 addr['state'] = 'Victoria'
             if not addr.get('country'):
-                addr['country'] = 'Australia'
+                addr['country'] = 'AU'
 
         existing_id = None
         

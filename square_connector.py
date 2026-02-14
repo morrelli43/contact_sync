@@ -3,6 +3,7 @@ Square Up API connector.
 """
 from typing import List, Optional
 import os
+from datetime import datetime, timezone
 
 try:
     from square.client import Client

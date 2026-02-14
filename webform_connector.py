@@ -10,6 +10,8 @@ import os
 
 import threading
 
+from contact_model import Contact
+
 class WebFormConnector:
     """Simple web form to collect contacts."""
     

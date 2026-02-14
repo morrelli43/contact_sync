@@ -60,8 +60,7 @@ class SquareConnector:
                             "description": f"Custom field for {key}",
                             "visibility": "VISIBILITY_READ_WRITE_VALUES",
                             "schema": {
-                                "ref": f"https://developer-production.squareup.com/CustomAttributeDefinition/{key}",
-                                "type": "String" # Simplified type
+                                "$ref": "https://developer-production.squareup.com/schema/v1/string"
                             }
                         }
                     }

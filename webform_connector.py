@@ -8,8 +8,7 @@ from datetime import datetime
 import json
 import os
 
-from contact_model import Contact
-
+import threading
 
 class WebFormConnector:
     """Simple web form to collect contacts."""
@@ -17,9 +16,21 @@ class WebFormConnector:
     def __init__(self, storage_file: str = 'webform_contacts.json'):
         self.storage_file = storage_file
         self.app = Flask(__name__)
+        self.engine = None
         CORS(self.app)  # Enable CORS for all routes
         self._setup_routes()
         self._load_contacts()
+
+    def _trigger_sync(self):
+        """Run sync in background thread."""
+        if self.engine:
+            print("Triggering background sync...")
+            try:
+                # Run sync in a way that doesn't print too much noise if possible,
+                # or just let it log standard output
+                self.engine.sync_all()
+            except Exception as e:
+                print(f"Background sync failed: {e}")
     
     def _load_contacts(self):
         """Load contacts from storage file."""
@@ -71,6 +82,11 @@ class WebFormConnector:
                 # Handle standard form submission
                 data = request.form
                 self._process_contact_data(data)
+                
+                # Trigger background sync
+                if self.engine:
+                    threading.Thread(target=self._trigger_sync).start()
+                    
                 return jsonify({'status': 'success', 'message': 'Contact submitted successfully!'})
         
         @self.app.route('/api/contacts', methods=['GET'])

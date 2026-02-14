@@ -201,6 +201,7 @@ def main():
             sys.exit(1)
         
         webform = engine.connectors['webform']
+        webform.engine = engine
         webform.run(host=args.host, port=args.port)
     
     elif args.command == 'webhook':

@@ -242,13 +242,21 @@ class SquareConnector:
         # Address
         if contact.addresses:
             addr = contact.addresses[0]  # Square supports one address
+            # Square requires ISO-3166-1 alpha-2 codes (e.g. 'AU' instead of 'Australia')
+            country = addr.get('country', 'AU')
+            if country == 'Australia':
+                country = 'AU'
+            elif not country or len(country) > 2:
+                # Fallback to AU for this specific user's context if invalid/full name
+                country = 'AU'
+                
             customer['address'] = {
                 'address_line_1': addr.get('street', ''),
                 'address_line_2': addr.get('street2', ''),
                 'locality': addr.get('city', ''),
                 'administrative_district_level_1': addr.get('state', ''),
                 'postal_code': addr.get('postal_code', ''),
-                'country': addr.get('country', 'US')
+                'country': country
             }
         
         # Notes

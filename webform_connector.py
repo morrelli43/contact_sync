@@ -3,6 +3,7 @@ Web Form connector for collecting contacts.
 """
 from typing import List
 from flask import Flask, request, jsonify, render_template_string
+from flask_cors import CORS
 from datetime import datetime
 import json
 import os
@@ -16,6 +17,7 @@ class WebFormConnector:
     def __init__(self, storage_file: str = 'webform_contacts.json'):
         self.storage_file = storage_file
         self.app = Flask(__name__)
+        CORS(self.app)  # Enable CORS for all routes
         self._setup_routes()
         self._load_contacts()
     
@@ -47,37 +49,62 @@ class WebFormConnector:
         
         @self.app.route('/submit', methods=['POST'])
         def submit_contact():
-            """Handle contact form submission."""
-            data = request.form
-            
-            # specific webform fields
-            scooter_name = data.get('scooter_name', '')
-            scooter_model = data.get('scooter_model', '')
-            escooter1 = f"{scooter_name} {scooter_model}".strip()
-
-            contact_data = {
-                'first_name': data.get('first_name', ''),
-                'last_name': data.get('last_name', ''),
-                'phone': data.get('phone', ''),
-                'suburb': data.get('suburb', ''), 
-                'email': data.get('email', ''), # Keep email capture if provided, but it might be hidden/optional
-                'company': data.get('company', ''),
-                'notes': data.get('notes', ''),
-                'escooter1': escooter1,
-                # 'escooter2': data.get('escooter2', ''), # Webform only provides #1 for now
-                # 'escooter3': data.get('escooter3', ''),
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            self.stored_contacts.append(contact_data)
-            self._save_contacts()
-            
-            return jsonify({'status': 'success', 'message': 'Contact submitted successfully!'})
+            """
+            Handle contact form submission.
+            Supports both form data and JSON payloads.
+            """
+            if request.is_json:
+                data = request.json
+                # Handle list of contacts (as per user spec)
+                if isinstance(data, list):
+                    # Process each contact in the list
+                    count = 0
+                    for item in data:
+                        self._process_contact_data(item)
+                        count += 1
+                    return jsonify({'status': 'success', 'message': f'{count} contacts processed successfully!'})
+                else:
+                    # Process single contact object
+                    self._process_contact_data(data)
+                    return jsonify({'status': 'success', 'message': 'Contact processed successfully!'})
+            else:
+                # Handle standard form submission
+                data = request.form
+                self._process_contact_data(data)
+                return jsonify({'status': 'success', 'message': 'Contact submitted successfully!'})
         
         @self.app.route('/api/contacts', methods=['GET'])
         def get_contacts():
             """API endpoint to get all contacts."""
             return jsonify({'contacts': self.stored_contacts})
+
+    def _process_contact_data(self, data):
+        """Process a single contact data dictionary and save it."""
+        # Check for pre-formatted escooter1 or construct from parts
+        if 'escooter1' in data:
+            escooter1 = data['escooter1']
+        else:
+            scooter_name = data.get('scooter_name', '')
+            scooter_model = data.get('scooter_model', '')
+            escooter1 = f"{scooter_name} {scooter_model}".strip()
+
+        contact_data = {
+            'first_name': data.get('first_name', ''),
+            'last_name': data.get('last_name', ''),
+            'phone': data.get('phone', ''),
+            'suburb': data.get('suburb', ''), 
+            'email': data.get('email', ''),
+            'company': data.get('company', ''),
+            'notes': data.get('notes', ''),
+            'escooter1': escooter1,
+            'timestamp': data.get('timestamp') or datetime.now().isoformat()
+        }
+        
+        self.stored_contacts.append(contact_data)
+        self._save_contacts()
+        
+        
+
     
     def fetch_contacts(self) -> List[Contact]:
         """Fetch all contacts from web form storage."""

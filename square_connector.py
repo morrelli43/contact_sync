@@ -45,8 +45,13 @@ class SquareConnector:
             
             existing_keys = {}
             if result.is_success():
-                for definition in result.body.get('custom_attribute_definitions', []):
-                    existing_keys[definition.get('key')] = definition.get('id')
+                defs = result.body.get('custom_attribute_definitions', [])
+                print(f"Found {len(defs)} Square custom attribute definitions")
+                for definition in defs:
+                    k = definition.get('key')
+                    id = definition.get('id')
+                    existing_keys[k] = id
+                    print(f"  - Definition: {k} ({definition.get('name')})")
             
             # Create missing definitions
             for key in ['escooter1', 'escooter2', 'escooter3']:
@@ -273,19 +278,31 @@ class SquareConnector:
 
     def _sync_custom_attributes(self, customer_id: str, contact: Contact):
         """Sync custom attributes for a customer using the upsert endpoint."""
-        for key, value in contact.extra_fields.items():
-            if key in ['escooter1', 'escooter2', 'escooter3']:
-                try:
-                    body = {
-                        "custom_attribute": {
-                            "value": str(value)
-                        }
+        attrs_to_sync = {k: v for k, v in contact.extra_fields.items() if k in ['escooter1', 'escooter2', 'escooter3']}
+        
+        if not attrs_to_sync:
+            return
+
+        print(f"Syncing {len(attrs_to_sync)} custom attributes for Square customer {customer_id}...")
+        for key, value in attrs_to_sync.items():
+            if not value:
+                continue
+                
+            try:
+                body = {
+                    "custom_attribute": {
+                        "value": str(value)
                     }
-                    # Value can be upserted using the key directly
-                    self.client.customer_custom_attributes.upsert_customer_custom_attribute(
-                        customer_id=customer_id,
-                        key=key,
-                        body=body
-                    )
-                except Exception as e:
-                    print(f"  Error upserting Square attribute {key}: {e}")
+                }
+                print(f"  Upserting {key} = '{value}'...")
+                result = self.client.customer_custom_attributes.upsert_customer_custom_attribute(
+                    customer_id=customer_id,
+                    key=key,
+                    body=body
+                )
+                if result.is_success():
+                    print(f"    ✓ Successfully synced {key}")
+                else:
+                    print(f"    ✗ Failed to sync {key}: {result.errors}")
+            except Exception as e:
+                print(f"    ✗ Error upserting Square attribute {key}: {e}")

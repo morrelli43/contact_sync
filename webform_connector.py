@@ -108,13 +108,13 @@ class WebFormConnector:
 
     def _process_contact_data(self, data):
         """Process a single contact data dictionary and save it."""
-        # Check for pre-formatted escooter1 or construct from parts
-        if 'escooter1' in data:
-            escooter1 = data['escooter1']
-        else:
+        # Look for any field containing 'scooter' to be more flexible
+        escooter_val = data.get('escooter1') or data.get('escooter')
+        if not escooter_val:
             scooter_name = data.get('scooter_name', '')
             scooter_model = data.get('scooter_model', '')
-            escooter1 = f"{scooter_name} {scooter_model}".strip()
+            if scooter_name or scooter_model:
+                escooter_val = f"{scooter_name} {scooter_model}".strip()
 
         contact_data = {
             'first_name': data.get('first_name', ''),
@@ -124,10 +124,17 @@ class WebFormConnector:
             'email': data.get('email', ''),
             'company': data.get('company', ''),
             'notes': data.get('notes', ''),
-            'escooter1': escooter1,
+            'escooter1': escooter_val,
             'timestamp': data.get('timestamp') or datetime.now(timezone.utc).isoformat()
         }
         
+        # Capture other escooters if present
+        for i in range(2, 4):
+            key = f'escooter{i}'
+            if key in data:
+                contact_data[key] = data[key]
+        
+        print(f"Processed webform contact: {contact_data.get('first_name')} {contact_data.get('last_name')} - Scooter: {escooter_val}")
         self.stored_contacts.append(contact_data)
         self._save_contacts()
         

@@ -120,7 +120,20 @@ class GoogleContactsConnector:
         addresses = person.get('addresses', [])
         for addr in addresses:
             street_full = addr.get('streetAddress', '')
-            street_parts = street_full.split('\n')
+            # Handle both newline (old) and comma (new) separators
+            if '\n' in street_full:
+                street_parts = street_full.split('\n', 1)
+            elif ', ' in street_full:
+                # Common AU format: "Unit X, Street Y" - we want to keep them separated
+                street_parts = street_full.split(', ', 1)
+                # If there's a comma, the unit/apt is usually the first part
+                # but our internal model expects street1, street2. 
+                # Let's be smart: if the first part is short (like "Unit 1" or "Apt 2"), it's street2.
+                if len(street_parts[0]) < 15 and any(word in street_parts[0].lower() for word in ['unit', 'apt', 'flat', 'level']):
+                    return street_parts[1], street_parts[0]
+            else:
+                street_parts = [street_full]
+                
             street = street_parts[0] if street_parts else ''
             street2 = street_parts[1] if len(street_parts) > 1 else ''
             
@@ -239,13 +252,14 @@ class GoogleContactsConnector:
         if contact.addresses:
             person['addresses'] = []
             for addr in contact.addresses:
-                street_parts = [addr.get('street', '')]
-                street2 = addr.get('street2', '')
                 if street2:
-                    street_parts.append(street2)
+                    # Australian convention: "Unit X, 123 Street Name"
+                    full_street = f"{street2}, {addr.get('street', '')}"
+                else:
+                    full_street = addr.get('street', '')
                 
                 person['addresses'].append({
-                    'streetAddress': "\n".join(street_parts),
+                    'streetAddress': full_street,
                     'city': addr.get('city', ''),
                     'region': addr.get('state', ''),
                     'postalCode': addr.get('postal_code', ''),

@@ -116,7 +116,7 @@ class WebFormConnector:
         
         return contacts
     
-    def run(self, host: str = '127.0.0.1', port: int = 5000):
+    def run(self, host: str = '127.0.0.1', port: int = 7173):
         """Run the web form server.
         
         Args:

@@ -10,4 +10,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+LABEL org.opencontainers.image.source=https://github.com/morrelli43/contact_sync
+LABEL org.opencontainers.image.description="Contact Sync Service"
+LABEL org.opencontainers.image.licenses=MIT
+
+# Expose the Flask port
+EXPOSE 7173
+
 ENTRYPOINT ["python", "main.py"]

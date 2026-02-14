@@ -92,12 +92,12 @@ services:
     volumes:
       - ./:/app
     ports:
-      - "5000:5000"   # webform
+      - "7173:7173"   # webform
       - "5001:5001"   # webhook
 ```
 
 For web servers, expose all interfaces inside the container:
-- Web form: `docker compose run --service-ports contact-sync webform --host 0.0.0.0 --port 5000`
+- Web form: `docker compose run --service-ports contact-sync webform --host 0.0.0.0 --port 7173`
 - Webhook server: `docker compose run --service-ports contact-sync webhook --host 0.0.0.0 --webhook-port 5001`
 
 ## Usage
@@ -140,10 +140,10 @@ python main.py import --file contacts_backup.json
 
 Start the web form for collecting contacts:
 ```bash
-python main.py webform --port 5000
+python main.py webform --port 7173
 ```
 
-Access the form at `http://localhost:5000`
+Access the form at `http://localhost:7173`
 
 ### Start Webhook Server (Real-Time Sync)
 
@@ -254,6 +254,29 @@ To contribute or modify the system:
 2. Each connector should implement `fetch_contacts()` and optionally `push_contact()`
 3. Add new connectors by creating a similar class structure
 4. Register new connectors in `main.py`
+
+## Running with Docker
+
+You can run the application using the pre-built Docker image from the GitHub Container Registry.
+
+1.  **Pull the image**:
+    ```bash
+    docker pull ghcr.io/morrelli43/contact_sync:main
+    ```
+
+2.  **Run the container**:
+    Since the application requires credentials (Google, Square) and environment variables, you need to mount the `env_files` directory and pass the `.env` file.
+
+    ```bash
+    docker run -d \
+      --name contact-sync \
+      -p 7173:7173 \
+      --env-file .env \
+      -v $(pwd)/env_files:/app/env_files \
+      ghcr.io/morrelli43/contact_sync:main
+    ```
+
+    *Note: Ensure your `.env` file and `env_files/` directory (containing `credentials.json`, etc.) are present in the current directory.*
 
 ## License
 

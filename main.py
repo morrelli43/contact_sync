@@ -97,8 +97,8 @@ def main():
     parser.add_argument(
         '--port',
         type=int,
-        default=5000,
-        help='Port for web form server (default: 5000)'
+        default=7173,
+        help='Port for web form server (default: 7173)'
     )
     
     parser.add_argument(

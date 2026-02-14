@@ -147,6 +147,16 @@ class GoogleContactsConnector:
                 # Store as is directly in extra_fields
                 contact.extra_fields[key] = value
         
+        # Extract last modified time from metadata
+        metadata = person.get('metadata', {})
+        sources = metadata.get('sources', [])
+        if sources:
+            update_time = sources[0].get('updateTime')
+            if update_time:
+                # Google format: "2023-11-01T12:00:00.000Z"
+                dt = datetime.fromisoformat(update_time.replace('Z', '+00:00'))
+                contact.last_modified = dt
+
         # Store Google resource name
         resource_name = person.get('resourceName')
         if resource_name:

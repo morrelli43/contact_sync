@@ -140,6 +140,13 @@ class SquareConnector:
         if note:
             contact.notes = note
         
+        # Extract last modified time
+        updated_at = customer.get('updated_at')
+        if updated_at:
+            # Square format: "2023-11-01T12:00:00Z"
+            dt = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+            contact.last_modified = dt
+
         # Store Square customer ID
         customer_id = customer.get('id')
         if customer_id:

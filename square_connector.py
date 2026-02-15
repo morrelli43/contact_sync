@@ -43,26 +43,36 @@ class SquareConnector:
             # List existing definitions
             result = self.client.customer_custom_attributes.list_customer_custom_attribute_definitions()
             
-            existing_keys = {}
+            existing_defs_by_key = {}
+            existing_defs_by_name = {}
             if result.is_success():
                 defs = result.body.get('custom_attribute_definitions', [])
                 print(f"Found {len(defs)} Square custom attribute definitions")
                 for definition in defs:
                     k = definition.get('key')
+                    n = definition.get('name')
                     id = definition.get('id')
-                    existing_keys[k] = id
-                    print(f"  - Definition: {k} ({definition.get('name')})")
+                    existing_defs_by_key[k] = k # Use the key itself for upsert
+                    existing_defs_by_name[n] = k
+                    print(f"  - Definition: {k} ({n})")
             
-            # Create missing definitions
-            for key in ['escooter1', 'escooter2', 'escooter3']:
-                if key in existing_keys:
-                    self.attribute_keys[key] = existing_keys[key]
+            # Match or create definitions
+            for i in range(1, 4):
+                key = f'escooter{i}'
+                name = f"eScooter {i}"
+                
+                # Try to match by key first, then by name
+                if key in existing_defs_by_key:
+                    self.attribute_keys[key] = existing_defs_by_key[key]
+                elif name in existing_defs_by_name:
+                    self.attribute_keys[key] = existing_defs_by_name[name]
+                    print(f"  Matched {key} to existing definition with key {existing_defs_by_name[name]}")
                 else:
                     print(f"Creating Square custom attribute definition for {key}...")
                     body = {
                         "custom_attribute_definition": {
                             "key": key,
-                            "name": f"eScooter {key[-1]}",
+                            "name": name,
                             "description": f"Custom field for {key}",
                             "visibility": "VISIBILITY_READ_WRITE_VALUES",
                             "schema": {
@@ -74,8 +84,8 @@ class SquareConnector:
                     
                     if create_result.is_success():
                         new_def = create_result.body.get('custom_attribute_definition')
-                        self.attribute_keys[key] = new_def.get('id')
-                        print(f"  Created {key} with ID {new_def.get('id')}")
+                        self.attribute_keys[key] = new_def.get('key')
+                        print(f"  Created {key} with key {new_def.get('key')}")
                     else:
                         print(f"  Error creating {key}: {create_result.errors}")
                         
@@ -179,20 +189,26 @@ class SquareConnector:
         custom_attrs = custom_attrs or customer.get('custom_attributes', {})
         
         if custom_attrs:
-             # Square might store them as a list or a dict depending on the endpoint/version
+             # Reverse mapping for qualified keys
+             rev_map = {v: k for k, v in self.attribute_keys.items()}
+             
+             # Square might store them as a list (from list_customer_custom_attributes) 
+             # or a dict (if expanded in other endpoints)
              if isinstance(custom_attrs, list):
                  for attr in custom_attrs:
                      key = attr.get('key')
                      value = attr.get('value')
                      if key and value is not None:
-                         if key in ['escooter1', 'escooter2', 'escooter3']:
-                             contact.extra_fields[key] = str(value)
+                         # Match literal key OR discovered (qualified) key
+                         mapped_key = rev_map.get(key) or (key if key in ['escooter1', 'escooter2', 'escooter3'] else None)
+                         if mapped_key:
+                             contact.extra_fields[mapped_key] = str(value)
              else:
                  for key, value_obj in custom_attrs.items():
-                     # value_obj might be {'value': '...'} or just the value
                      val = value_obj.get('value') if isinstance(value_obj, dict) else value_obj
-                     if key in ['escooter1', 'escooter2', 'escooter3']:
-                         contact.extra_fields[key] = str(val)
+                     mapped_key = rev_map.get(key) or (key if key in ['escooter1', 'escooter2', 'escooter3'] else None)
+                     if mapped_key:
+                         contact.extra_fields[mapped_key] = str(val)
         
         return contact if contact.email or (contact.first_name and contact.last_name) else None
     
@@ -302,21 +318,24 @@ class SquareConnector:
             if not value:
                 continue
                 
+            # Use the discovered key (which might be a qualified key like 'square:xxx')
+            sync_key = self.attribute_keys.get(key, key)
+            
             try:
                 body = {
                     "custom_attribute": {
                         "value": str(value)
                     }
                 }
-                print(f"  Upserting {key} = '{value}'...")
+                print(f"  Upserting {sync_key} (from {key}) = '{value}'...")
                 result = self.client.customer_custom_attributes.upsert_customer_custom_attribute(
                     customer_id=customer_id,
-                    key=key,
+                    key=sync_key,
                     body=body
                 )
                 if result.is_success():
                     print(f"    ✓ Successfully synced {key}")
                 else:
-                    print(f"    ✗ Failed to sync {key}: {result.errors}")
+                    print(f"    ✗ Failed to sync {key} using key {sync_key}: {result.errors}")
             except Exception as e:
-                print(f"    ✗ Error upserting Square attribute {key}: {e}")
+                print(f"    ✗ Error upserting Square attribute {key} ({sync_key}): {e}")

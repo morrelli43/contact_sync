@@ -4,6 +4,9 @@ Main application for contact synchronization.
 import argparse
 import os
 import sys
+import time
+import threading
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 from contact_model import ContactStore
@@ -78,8 +81,15 @@ def main():
     
     parser.add_argument(
         'command',
-        choices=['sync', 'stats', 'export', 'import', 'webform', 'webhook'],
+        choices=['sync', 'stats', 'export', 'import', 'webform', 'webhook', 'serve'],
         help='Command to execute'
+    )
+    
+    parser.add_argument(
+        '--interval',
+        type=int,
+        default=1800,
+        help='Sync interval in seconds for serve command (default: 1800)'
     )
     
     parser.add_argument(
@@ -204,6 +214,35 @@ def main():
         webform.engine = engine
         webform.run(host=args.host, port=args.port)
     
+    elif args.command == 'serve':
+        print("\n" + "=" * 60)
+        print("STARTING UNIFIED SYNC SERVER")
+        print("=" * 60 + "\n")
+        
+        # 1. Start periodic sync thread
+        def periodic_sync():
+            print(f"Periodic sync thread started (Interval: {args.interval}s)")
+            while True:
+                time.sleep(args.interval)
+                print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Triggering periodic sync...")
+                engine.sync_all()
+        
+        threading.Thread(target=periodic_sync, daemon=True).start()
+        
+        # 2. Start Webhook server (in thread)
+        if config.get('enable_square', False):
+            webhook_handler = WebhookHandler(engine, store)
+            threading.Thread(target=webhook_handler.run, kwargs={'host': args.host, 'port': args.webhook_port}, daemon=True).start()
+        
+        # 3. Start Webform server (main thread)
+        if 'webform' not in engine.connectors:
+            print("\nERROR: Web form connector not enabled. Refusing to start.")
+            sys.exit(1)
+            
+        webform = engine.connectors['webform']
+        webform.engine = engine
+        webform.run(host=args.host, port=args.port)
+
     elif args.command == 'webhook':
         print("\nStarting webhook server for real-time sync...")
         print("This server listens for webhook notifications from Square and other sources")

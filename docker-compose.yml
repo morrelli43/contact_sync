@@ -6,8 +6,7 @@ services:
     image: ghcr.io/morrelli43/contact_sync:main
     container_name: "contact-sync"
     restart: unless-stopped
-    command: ["webform", "--host", "0.0.0.0"] # UNCOMMENTED: Required to start the web server
-    # command: ["sync"]    # Uncomment to run one-time sync
+    command: ["serve", "--host", "0.0.0.0"]
     environment:
       - ENABLE_GOOGLE=true
       - ENABLE_SQUARE=true
@@ -20,3 +19,4 @@ services:
       - ~/dockerhub/permadata/oys_contacts/env_files:/app/env_files
     ports:
       - "7173:7173"
+      - "5001:5001"

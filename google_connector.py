@@ -130,12 +130,14 @@ class GoogleContactsConnector:
                 # but our internal model expects street1, street2. 
                 # Let's be smart: if the first part is short (like "Unit 1" or "Apt 2"), it's street2.
                 if len(street_parts[0]) < 15 and any(word in street_parts[0].lower() for word in ['unit', 'apt', 'flat', 'level']):
-                    return street_parts[1], street_parts[0]
+                    street = street_parts[1]
+                    street2 = street_parts[0]
+                else:
+                    street = street_parts[0]
+                    street2 = street_parts[1] if len(street_parts) > 1 else ''
             else:
-                street_parts = [street_full]
-                
-            street = street_parts[0] if street_parts else ''
-            street2 = street_parts[1] if len(street_parts) > 1 else ''
+                street = street_full
+                street2 = ''
             
             contact.addresses.append({
                 'street': street,
@@ -252,11 +254,13 @@ class GoogleContactsConnector:
         if contact.addresses:
             person['addresses'] = []
             for addr in contact.addresses:
+                street1 = addr.get('street', '')
+                street2 = addr.get('street2', '')
                 if street2:
                     # Australian convention: "Unit X, 123 Street Name"
-                    full_street = f"{street2}, {addr.get('street', '')}"
+                    full_street = f"{street2}, {street1}"
                 else:
-                    full_street = addr.get('street', '')
+                    full_street = street1
                 
                 person['addresses'].append({
                     'streetAddress': full_street,

@@ -5,6 +5,7 @@ from typing import List, Dict, Set
 from datetime import datetime, timezone
 import json
 import os
+import threading
 
 from contact_model import Contact, ContactStore
 
@@ -17,6 +18,7 @@ class SyncEngine:
         self.state_file = state_file
         self.connectors = {}
         self.last_sync_times = {}
+        self.lock = threading.Lock()
         self._load_state()
     
     def _load_state(self):
@@ -72,41 +74,48 @@ class SyncEngine:
         return self.store.get_all_contacts()
     
     def sync_all(self) -> bool:
-        """Perform a full synchronization cycle."""
-        print("=" * 60)
-        print("Starting synchronization cycle")
-        print("=" * 60)
-        
-        # Fetch contacts from all sources
-        source_contacts = self.fetch_all_contacts()
-        
-        # Merge all contacts
-        merged_contacts = self.merge_contacts(source_contacts)
-        
-        # Push contacts back to all sources
-        success = self.push_to_all_sources(merged_contacts)
-        
-        # Update sync times
-        current_time = datetime.now(timezone.utc).isoformat()
-        for name in self.connectors.keys():
-            self.last_sync_times[name] = current_time
-        
-        self._save_state()
-        
-        # Cleanup transitional sources (like webform queue)
-        if success:
-            for name, connector in self.connectors.items():
-                if hasattr(connector, 'clear_stored_contacts'):
-                    try:
-                        connector.clear_stored_contacts()
-                    except Exception as e:
-                        print(f"  Error clearing {name}: {e}")
-        
-        print("\n" + "=" * 60)
-        print("Synchronization cycle completed")
-        print("=" * 60)
-        
-        return success
+        """Perform a full synchronization cycle. Thread-safe."""
+        if not self.lock.acquire(blocking=False):
+            print("Sync already in progress, skipping this trigger.")
+            return False
+            
+        try:
+            print("=" * 60)
+            print("Starting synchronization cycle")
+            print("=" * 60)
+            
+            # Fetch contacts from all sources
+            source_contacts = self.fetch_all_contacts()
+            
+            # Merge all contacts
+            merged_contacts = self.merge_contacts(source_contacts)
+            
+            # Push contacts back to all sources
+            success = self.push_to_all_sources(merged_contacts)
+            
+            # Update sync times
+            current_time = datetime.now(timezone.utc).isoformat()
+            for name in self.connectors.keys():
+                self.last_sync_times[name] = current_time
+            
+            self._save_state()
+            
+            # Cleanup transitional sources (like webform queue)
+            if success:
+                for name, connector in self.connectors.items():
+                    if hasattr(connector, 'clear_stored_contacts'):
+                        try:
+                            connector.clear_stored_contacts()
+                        except Exception as e:
+                            print(f"  Error clearing {name}: {e}")
+            
+            print("\n" + "=" * 60)
+            print("Synchronization cycle completed")
+            print("=" * 60)
+            
+            return success
+        finally:
+            self.lock.release()
     
     def push_to_all_sources(self, contacts: List[Contact]) -> bool:
         """Push merged contacts back to all sources."""

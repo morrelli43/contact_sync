@@ -8,7 +8,8 @@ A contact synchronization system that connects Google Contacts, Square Up, and a
 - **Smart Merging**: Automatically merge duplicate contacts while preserving all information
 - **Bidirectional Sync**: Push updates back to Google Contacts and Square Up
 - **Change Detection**: When a contact is updated in one source, the change propagates to others
-- **Real-Time Webhooks**: Instant sync when Square contacts change (see [WEBHOOKS.md](WEBHOOKS.md))
+- **Unified Sync Server**: Single command to handle Web Form, Square Webhooks, and Periodic Sync
+- **Real-Time Webhooks**: Instant sync when Square contacts change
 - **Web Form**: Simple web interface for collecting new contacts
 
 ## Architecture
@@ -87,7 +88,7 @@ Example `docker-compose.yml`:
 services:
   contact-sync:
     build: .
-    command: ["sync"]
+    command: ["serve"]
     env_file: .env
     volumes:
       - ./:/app
@@ -96,13 +97,20 @@ services:
       - "5001:5001"   # webhook
 ```
 
-For web servers, expose all interfaces inside the container:
-- Web form: `docker compose run --service-ports contact-sync webform --host 0.0.0.0 --port 7173`
-- Webhook server: `docker compose run --service-ports contact-sync webhook --host 0.0.0.0 --webhook-port 5001`
+For the unified server, expose all interfaces inside the container:
+- Unified Server: `docker compose run --service-ports contact-sync serve --host 0.0.0.0`
+
+### Always-On Unified Server (Recommended)
+
+Start the unified server to handle everything (Web Form, Webhooks, and Periodic Sync):
+```bash
+python main.py serve
+```
+This is the best way to run the application in production or Docker.
 
 ## Usage
 
-### Synchronize Contacts
+### Manual Synchronize Contacts
 
 Run a full synchronization cycle:
 ```bash

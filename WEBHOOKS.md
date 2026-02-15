@@ -30,17 +30,19 @@ Square provides native webhook support for customer events. When a contact is cr
 
 ### Setup Instructions
 
-#### 1. Start the Webhook Server
-
-```bash
-# Start webhook server on localhost (secure)
-python main.py webhook
-
-# Or expose on all interfaces (for production with reverse proxy)
-python main.py webhook --host 0.0.0.0 --webhook-port 5001
-```
-
-The webhook server will listen on `http://127.0.0.1:5001` by default.
+#### 1. Start the Unified Server (Recommended)
+ 
+ ```bash
+ # Start unified server (handles Webform, Webhooks, and Periodic Sync)
+ python main.py serve
+ ```
+ 
+ This is the simplest way to run everything. If you only want the webhook server:
+ 
+ ```bash
+ # Start ONLY the webhook server
+ python main.py webhook
+ ```
 
 #### 2. Configure Public Endpoint
 
@@ -213,29 +215,18 @@ def submit_contact():
 
 ## Hybrid Approach (Recommended)
 
-Combine both methods for best results:
-
-1. **Webhook for Square** - Instant sync when Square changes
-2. **Polling for Google** - Regular sync (e.g., every 15 minutes)
-3. **Direct integration for Web Form** - Instant sync on submission
-
-### Implementation
-
-Run both services simultaneously:
-
-```bash
-# Terminal 1: Webhook server for Square
-python main.py webhook
-
-# Terminal 2: Web form for manual entry
-python main.py webform
-
-# Terminal 3 (or cron): Scheduled Google polling
-while true; do
-    python main.py sync
-    sleep 900  # 15 minutes
-done
-```
+### Simplified Approach (Unified Server)
+ 
+ Use the `serve` command to run all of the above in a single process:
+ 
+ ```bash
+ python main.py serve
+ ```
+ 
+ Access:
+ - Web Form: `http://localhost:7173`
+ - Webhooks: `http://localhost:5001/webhooks/square`
+ - Periodic Sync: Automatic (every 30 mins)
 
 Or use a process manager (systemd, supervisor, PM2):
 

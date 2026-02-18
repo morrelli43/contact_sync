@@ -76,6 +76,32 @@ class TestContact(unittest.TestCase):
         self.assertEqual(contact3.first_name, 'NewerName')
         # Should keep the newer timestamp
         self.assertEqual(contact3.last_modified, datetime(2023, 1, 3, tzinfo=timezone.utc))
+
+    def test_contact_merge_address_precedence(self):
+        """Test that newer contact address takes precedence."""
+        # Setup: Old contact with address
+        contact1 = Contact('c1')
+        contact1.first_name = 'Bob'
+        contact1.last_modified = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        contact1.addresses = [{'street': 'Old St', 'city': 'Old City'}]
+        
+        # New contact with better address
+        contact2 = Contact('c2')
+        contact2.first_name = 'Bob'
+        contact2.last_modified = datetime(2023, 1, 2, tzinfo=timezone.utc)
+        contact2.addresses = [{'street': 'New St', 'city': 'New City', 'postal_code': '1234'}]
+        
+        # Merge
+        contact1.merge_with(contact2)
+        
+        # Verify
+        # The first address (index 0) should be the new one because it's newer
+        # This is critical for Square which only uses the first address
+        self.assertEqual(contact1.addresses[0]['street'], 'New St')
+        self.assertEqual(contact1.addresses[0]['postal_code'], '1234')
+        
+        # Ensure we still have the old one somewhere (optional, but good for history)
+        # self.assertEqual(len(contact1.addresses), 2)
     
     def test_contact_to_dict(self):
         """Test converting contact to dictionary."""

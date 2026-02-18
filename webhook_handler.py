@@ -19,8 +19,8 @@ from sync_engine import SyncEngine
 class WebhookHandler:
     """Handles webhook notifications from various sources."""
     
-    def __init__(self, engine: SyncEngine, store: ContactStore):
-        self.app = Flask(__name__)
+    def __init__(self, engine: SyncEngine, store: ContactStore, app=None):
+        self.app = app or Flask(__name__)
         self.engine = engine
         self.store = store
         self.square_signature_key = os.getenv('SQUARE_SIGNATURE_KEY')

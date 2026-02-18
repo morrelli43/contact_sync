@@ -234,18 +234,21 @@ def main():
         
         threading.Thread(target=periodic_sync, daemon=True).start()
         
-        # 2. Start Webhook server (in thread)
-        if config.get('enable_square', False):
-            webhook_handler = WebhookHandler(engine, store)
-            threading.Thread(target=webhook_handler.run, kwargs={'host': args.host, 'port': args.webhook_port}, daemon=True).start()
-        
-        # 3. Start Webform server (main thread)
+        # 2. Ensure webform connector is available
         if 'webform' not in engine.connectors:
             print("\nERROR: Web form connector not enabled. Refusing to start.")
             sys.exit(1)
             
         webform = engine.connectors['webform']
         webform.engine = engine
+        
+        # 3. Register webhook routes on the webform's Flask app (single server)
+        if config.get('enable_square', False):
+            webhook_handler = WebhookHandler(engine, store, app=webform.app)
+            print("Webhook routes registered on webform server")
+            print(f"  - POST /webhooks/square  (Square customer events)")
+            print(f"  - GET  /webhooks/health  (health check)")
+        
         webform.run(host=args.host, port=args.port)
 
     elif args.command == 'webhook':

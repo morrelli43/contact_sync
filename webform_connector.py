@@ -107,28 +107,43 @@ class WebFormConnector:
             return jsonify({'contacts': self.stored_contacts})
 
     def _process_contact_data(self, data):
-        """Process a single contact data dictionary and save it."""
+        """Process a single contact data dictionary and save it.
+        
+        Handles field names from both:
+        - External form (booknow.html): surname, number, address_line_1, make, model, state, country
+        - Internal webform: last_name, phone, address, scooter_name, scooter_model
+        """
         # Look for any field containing 'scooter' to be more flexible
         escooter_val = data.get('escooter1') or data.get('escooter')
         if not escooter_val:
-            scooter_name = data.get('scooter_name', '')
-            scooter_model = data.get('scooter_model', '')
+            # External form uses 'make' and 'model'
+            scooter_name = data.get('scooter_name') or data.get('make', '')
+            scooter_model = data.get('scooter_model') or data.get('model', '')
             if scooter_name or scooter_model:
                 escooter_val = f"{scooter_name} {scooter_model}".strip()
 
         contact_data = {
             'first_name': data.get('first_name', ''),
-            'last_name': data.get('last_name', ''),
-            'phone': data.get('phone', ''),
-            'address': data.get('address', ''),
+            'last_name': data.get('last_name') or data.get('surname', ''),
+            'phone': data.get('phone') or data.get('number', ''),
+            'address': data.get('address') or data.get('address_line_1', ''),
             'suburb': data.get('suburb', ''), 
+            'state': data.get('state', ''),
             'postcode': data.get('postcode', ''),
+            'country': data.get('country', ''),
             'email': data.get('email', ''),
             'company': data.get('company', ''),
-            'notes': data.get('notes', ''),
+            'notes': data.get('notes') or data.get('issue', ''),
             'escooter1': escooter_val,
             'timestamp': data.get('timestamp') or datetime.now(timezone.utc).isoformat()
         }
+        
+        # If there's an other_issue (free text), append it to notes
+        other_issue = data.get('other_issue', '')
+        if other_issue and contact_data['notes']:
+            contact_data['notes'] = f"{contact_data['notes']}: {other_issue}"
+        elif other_issue:
+            contact_data['notes'] = other_issue
         
         # Capture other escooters if present
         for i in range(2, 4):
@@ -136,71 +151,13 @@ class WebFormConnector:
             if key in data:
                 contact_data[key] = data[key]
         
-        print(f"Processed webform contact: {contact_data.get('first_name')} {contact_data.get('last_name')} - Address: {contact_data.get('address')}")
+        print(f"Processed webform contact: {contact_data.get('first_name')} {contact_data.get('last_name')} - Address: {contact_data.get('address')}, Suburb: {contact_data.get('suburb')}, Postcode: {contact_data.get('postcode')}")
         self.stored_contacts.append(contact_data)
         self._save_contacts()
         
         
 
     
-    def _parse_address_string(self, full_address: str) -> dict:
-        """Parse a full address string into components.
-        
-        Handles Australian address formats like:
-        - '23 Batman Street, West Melbourne VIC, Australia'
-        - '432 Queen Street, Melbourne VIC 3000, Australia'
-        - '5/10 Smith Rd, Suburb VIC 3000, Australia'
-        """
-        import re
-        
-        result = {
-            'street': '',
-            'city': '',
-            'state': '',
-            'postal_code': '',
-            'country': ''
-        }
-        
-        if not full_address:
-            return result
-        
-        # Split by commas
-        parts = [p.strip() for p in full_address.split(',')]
-        
-        if len(parts) >= 3:
-            # Format: "Street, Suburb STATE [Postcode], Country"
-            result['street'] = parts[0]
-            result['country'] = parts[-1]
-            
-            # Middle part(s) contain suburb, state, and possibly postcode
-            # e.g. "West Melbourne VIC" or "Melbourne VIC 3000"
-            middle = ', '.join(parts[1:-1]).strip()
-            
-            # Try to extract postcode (Australian postcodes are 4 digits)
-            postcode_match = re.search(r'\b(\d{4})\b', middle)
-            if postcode_match:
-                result['postal_code'] = postcode_match.group(1)
-                middle = middle[:postcode_match.start()].strip()
-            
-            # Try to extract state (VIC, NSW, QLD, SA, WA, TAS, NT, ACT)
-            state_match = re.search(r'\b(VIC|NSW|QLD|SA|WA|TAS|NT|ACT|Victoria|New South Wales|Queensland|South Australia|Western Australia|Tasmania|Northern Territory)\b', middle, re.IGNORECASE)
-            if state_match:
-                result['state'] = state_match.group(1)
-                # Everything before the state is the suburb
-                result['city'] = middle[:state_match.start()].strip().rstrip(',')
-            else:
-                result['city'] = middle
-                
-        elif len(parts) == 2:
-            # Format: "Street, Suburb" or "Suburb, Country"
-            result['street'] = parts[0]
-            result['city'] = parts[1]
-        else:
-            # Single string, treat as street
-            result['street'] = full_address
-        
-        return result
-
     def fetch_contacts(self) -> List[Contact]:
         """Fetch all contacts from web form storage."""
         self._load_contacts()
@@ -215,41 +172,14 @@ class WebFormConnector:
             contact.company = data.get('company')
             contact.notes = data.get('notes')
             
-            # Get raw address fields
-            raw_address = data.get('address', '')
-            raw_suburb = data.get('suburb', '')
-            raw_postcode = data.get('postcode', '')
-            
-            # Detect if suburb contains a full address string (from Google Places autocomplete)
-            # A full address usually contains commas and state abbreviations
-            if raw_suburb and ',' in raw_suburb:
-                parsed = self._parse_address_string(raw_suburb)
-                address = {
-                    'street': raw_address or parsed['street'],
-                    'city': parsed['city'],
-                    'state': parsed['state'] or 'Victoria',
-                    'postal_code': raw_postcode or parsed['postal_code'],
-                    'country': parsed['country'] or 'Australia'
-                }
-            elif raw_address and ',' in raw_address and not raw_suburb:
-                # Full address might be in the address field instead
-                parsed = self._parse_address_string(raw_address)
-                address = {
-                    'street': parsed['street'],
-                    'city': parsed['city'],
-                    'state': parsed['state'] or 'Victoria',
-                    'postal_code': raw_postcode or parsed['postal_code'],
-                    'country': parsed['country'] or 'Australia'
-                }
-            else:
-                # Normal case: fields are already separated
-                address = {
-                    'street': raw_address,
-                    'city': raw_suburb,
-                    'postal_code': raw_postcode,
-                    'state': 'Victoria',
-                    'country': 'Australia'
-                }
+            # Use pre-parsed address components directly
+            address = {
+                'street': data.get('address', ''),
+                'city': data.get('suburb', ''),
+                'state': data.get('state', '') or 'Victoria',
+                'postal_code': data.get('postcode', ''),
+                'country': data.get('country', '') or 'Australia'
+            }
             
             if address['street'] or address['city'] or address['postal_code']:
                 contact.addresses.append(address)

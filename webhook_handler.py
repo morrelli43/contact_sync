@@ -6,6 +6,7 @@ contacts are created or updated in Square. For Google Contacts, which doesn't
 support webhooks, we use polling with sync tokens.
 """
 from flask import Flask, request, jsonify
+import base64
 import hashlib
 import hmac
 import os
@@ -94,12 +95,15 @@ class WebhookHandler:
         webhook_url = self.square_webhook_url or request.url
         body = request.get_data()
         
+        # Square signature = Base64(HMAC-SHA256(signature_key, url + body))
         payload = webhook_url.encode() + body
-        expected_signature = hmac.new(
-            self.square_signature_key.encode(),
-            payload,
-            hashlib.sha256
-        ).hexdigest()
+        expected_signature = base64.b64encode(
+            hmac.new(
+                self.square_signature_key.encode(),
+                payload,
+                hashlib.sha256
+            ).digest()
+        ).decode()
         
         # Compare signatures (constant-time comparison)
         return hmac.compare_digest(signature, expected_signature)

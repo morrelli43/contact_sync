@@ -174,8 +174,8 @@ def main():
         for source, count in stats['sources'].items():
             print(f"  {source}: {count} contacts")
         print("\nLast sync times:")
-        for source, time in stats['last_sync_times'].items():
-            print(f"  {source}: {time or 'Never'}")
+        for source, sync_time in stats['last_sync_times'].items():
+            print(f"  {source}: {sync_time or 'Never'}")
     
     elif args.command == 'export':
         filename = args.file

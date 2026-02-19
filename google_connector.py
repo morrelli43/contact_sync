@@ -3,6 +3,8 @@ Google Contacts API connector.
 """
 from typing import List, Optional
 import os
+import ssl
+import time
 from datetime import datetime
 
 try:
@@ -179,8 +181,62 @@ class GoogleContactsConnector:
         
         return contact if contact.email or (contact.first_name and contact.last_name) else None
     
+    # Transient errors that should trigger a retry
+    _RETRYABLE_EXCEPTIONS = (
+        ssl.SSLError,
+        ConnectionError,
+        ConnectionResetError,
+        TimeoutError,
+        OSError,
+    )
+
+    def _is_retryable(self, exc: Exception) -> bool:
+        """Check if an exception is a transient error worth retrying."""
+        # Direct match on known transient exception types
+        if isinstance(exc, self._RETRYABLE_EXCEPTIONS):
+            return True
+        # Google API HTTP errors — retry on 429, 500, 502, 503, 504
+        try:
+            from googleapiclient.errors import HttpError
+            if isinstance(exc, HttpError) and exc.resp.status in (429, 500, 502, 503, 504):
+                return True
+        except ImportError:
+            pass
+        # Catch urllib3 / httplib wrapped errors by message
+        err_msg = str(exc).lower()
+        if any(keyword in err_msg for keyword in [
+            'ssl', 'timed out', 'timeout', 'connection reset',
+            'request-sent', 'record layer failure', 'broken pipe'
+        ]):
+            return True
+        return False
+
+    def _retry_api_call(self, func, *args, max_retries: int = 3, **kwargs):
+        """
+        Execute a Google API call with retry + exponential backoff.
+
+        Retries on transient SSL, timeout, and connection errors.
+        """
+        last_exc = None
+        for attempt in range(max_retries + 1):
+            try:
+                result = func(*args, **kwargs)
+                # Small delay between successful API calls to avoid bursts
+                time.sleep(0.3)
+                return result
+            except Exception as exc:
+                last_exc = exc
+                if attempt < max_retries and self._is_retryable(exc):
+                    delay = (2 ** attempt)  # 1s, 2s, 4s
+                    print(f"  Transient error (attempt {attempt + 1}/{max_retries + 1}): {exc}")
+                    print(f"  Retrying in {delay}s...")
+                    time.sleep(delay)
+                else:
+                    raise
+        raise last_exc  # Should not reach here, but just in case
+
     def push_contact(self, contact: Contact) -> bool:
-        """Push a contact to Google Contacts."""
+        """Push a contact to Google Contacts (with retry on transient errors)."""
         if not self.service:
             self.authenticate()
         
@@ -213,34 +269,40 @@ class GoogleContactsConnector:
             return False
     
     def _create_contact(self, contact: Contact):
-        """Create a new contact in Google."""
+        """Create a new contact in Google (with retry)."""
         person = self._contact_to_person(contact)
         
-        result = self.service.people().createContact(
-            body=person
-        ).execute()
+        result = self._retry_api_call(
+            self.service.people().createContact(
+                body=person
+            ).execute
+        )
         
         # Store the new resource name
         contact.source_ids['google'] = result.get('resourceName')
     
     def _update_contact(self, contact: Contact):
-        """Update an existing contact in Google."""
+        """Update an existing contact in Google (with retry)."""
         resource_name = contact.source_ids['google']
         person = self._contact_to_person(contact)
         
-        # Get current contact to retrieve etag
-        current = self.service.people().get(
-            resourceName=resource_name,
-            personFields='names'
-        ).execute()
+        # Get current contact to retrieve etag (with retry)
+        current = self._retry_api_call(
+            self.service.people().get(
+                resourceName=resource_name,
+                personFields='names'
+            ).execute
+        )
         
         person['etag'] = current.get('etag')
         
-        self.service.people().updateContact(
-            resourceName=resource_name,
-            updatePersonFields='names,emailAddresses,phoneNumbers,organizations,addresses,biographies,userDefined',
-            body=person
-        ).execute()
+        self._retry_api_call(
+            self.service.people().updateContact(
+                resourceName=resource_name,
+                updatePersonFields='names,emailAddresses,phoneNumbers,organizations,addresses,biographies,userDefined',
+                body=person
+            ).execute
+        )
     
     def _contact_to_person(self, contact: Contact) -> dict:
         """Convert Contact to Google person object."""

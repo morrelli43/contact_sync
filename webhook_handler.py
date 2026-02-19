@@ -10,6 +10,7 @@ import base64
 import hashlib
 import hmac
 import os
+import time
 from typing import Callable, Optional
 from datetime import datetime
 
@@ -141,11 +142,18 @@ class WebhookHandler:
                         continue
                     
                     print(f"Pushing to {source_name}...")
+                    success_count = 0
+                    fail_count = 0
                     for contact in all_contacts:
                         try:
                             connector.push_contact(contact)
+                            success_count += 1
                         except Exception as e:
+                            fail_count += 1
                             print(f"  Error pushing contact to {source_name}: {e}")
+                        # Throttle between contacts to avoid overwhelming the API
+                        time.sleep(0.5)
+                    print(f"  {source_name}: {success_count} succeeded, {fail_count} failed out of {len(all_contacts)} contacts")
                 
                 print(f"Sync triggered by Square webhook completed successfully")
         

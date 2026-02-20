@@ -62,19 +62,16 @@ class Contact:
         # Merge source IDs
         self.source_ids.update(other.source_ids)
         
-        # Merge addresses (prioritizing newer)
-        if other_is_newer:
-            # Other is newer, so its addresses should come first
-            new_addresses = list(other.addresses) # Copy other's addresses
-            for addr in self.addresses:
-                if addr not in new_addresses:
-                    new_addresses.append(addr)
-            self.addresses = new_addresses
-        else:
-            # Self is newer, keep self's addresses first
-            for addr in other.addresses:
-                if addr not in self.addresses:
-                    self.addresses.append(addr)
+        # Merge addresses (prioritizing newer, keeping only one)
+        if other_is_newer and other.addresses:
+            # Other is newer and has an address, so use it as the sole address
+            self.addresses = [other.addresses[0]]
+        elif not self.addresses and other.addresses:
+            # Self has no address, but other does
+            self.addresses = [other.addresses[0]]
+        # Otherwise keep self's existing address (if any) as the sole address
+        if len(self.addresses) > 1:
+            self.addresses = [self.addresses[0]]
         
         # Merge extra fields
         # specific logic for escooter fields to fill sequentially

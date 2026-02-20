@@ -141,14 +141,16 @@ class GoogleContactsConnector:
                 street = street_full
                 street2 = ''
             
-            contact.addresses.append({
+            # Use only the first primary address
+            contact.addresses = [{
                 'street': street,
                 'street2': street2,
                 'city': addr.get('city', ''),
                 'state': addr.get('region', ''),
                 'postal_code': addr.get('postalCode', ''),
                 'country': addr.get('country', '')
-            })
+            }]
+            break  # Only process the first address
         
         # Extract notes
         bios = person.get('biographies', [])
@@ -329,23 +331,23 @@ class GoogleContactsConnector:
         
         # Addresses
         if contact.addresses:
-            person['addresses'] = []
-            for addr in contact.addresses:
-                street1 = addr.get('street', '')
-                street2 = addr.get('street2', '')
-                if street2:
-                    # Australian convention: "Unit X, 123 Street Name"
-                    full_street = f"{street2}, {street1}"
-                else:
-                    full_street = street1
-                
-                person['addresses'].append({
-                    'streetAddress': full_street,
-                    'city': addr.get('city', ''),
-                    'region': addr.get('state', ''),
-                    'postalCode': addr.get('postal_code', ''),
-                    'country': addr.get('country', '')
-                })
+            # Always pass only the single primary address
+            addr = contact.addresses[0]
+            street1 = addr.get('street', '')
+            street2 = addr.get('street2', '')
+            if street2:
+                # Australian convention: "Unit X, 123 Street Name"
+                full_street = f"{street2}, {street1}"
+            else:
+                full_street = street1
+            
+            person['addresses'] = [{
+                'streetAddress': full_street,
+                'city': addr.get('city', ''),
+                'region': addr.get('state', ''),
+                'postalCode': addr.get('postal_code', ''),
+                'country': addr.get('country', '')
+            }]
         
         # Notes
         if contact.notes:

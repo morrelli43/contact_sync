@@ -97,7 +97,7 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Contact Sync v2.0')
     parser.add_argument('command', choices=['serve', 'sync'], help='Command to execute. serve: start daemon. sync: single pass.')
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
     
     if args.command == 'serve':
         serve()

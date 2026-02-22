@@ -106,25 +106,25 @@ class TestContactModelV2(unittest.TestCase):
         self.assertEqual(addr2['postal_code'], '3000')
 
     def test_square_erases_google_data(self):
-        # If square has explicitly blanked out an email, Google shouldn't put it back
+        # 1. Google has data that Square doesn't
+        goo_contact = Contact()
+        goo_contact.source_ids = {'google': 'g1'}
+        goo_contact.email = "old@google.com"
+        goo_contact.extra_fields['escooter1'] = "Old Scooter"
+        
+        # 2. Square comes along with that field EXPLICITLY CLEARED via None or missing
         sq_contact = Contact()
-        sq_contact.first_name = "Adam"
-        sq_contact.email = ""  # Intentionally blank
-        sq_contact.extra_fields['escooter1'] = "" # Intentionally erased
-        sq_contact.source_ids['square'] = 'sq_1'
+        sq_contact.source_ids = {'square': 's1'}
+        sq_contact.email = "" # Explicitly cleared
+        # Notice escooter1 is entirely missing from sq_contact
         
-        go_contact = Contact()
-        go_contact.first_name = "Adam"
-        go_contact.email = "adam@adam.com" # Google has old data
-        go_contact.extra_fields['escooter1'] = "Old Scooter"
-        go_contact.source_ids['google'] = 'go_1'
+        # Merge, yielding 'sq_contact' logic clobbering 'goo_contact' because it's the source of truth
+        goo_contact.merge_with(sq_contact, source_of_truth='square')
         
-        # When merging with Square as source of truth
-        sq_contact.merge_with(go_contact, source_of_truth='square')
-        
-        # Since Square is the truth, it should KEEP the blank values and destroy Google's
-        self.assertEqual(sq_contact.email, "")
-        self.assertEqual(sq_contact.extra_fields.get('escooter1', ''), "")
+        # Assertions
+        self.assertEqual(goo_contact.email, "")
+        # Since Square didn't have escooter1, it should wipe Google's copy to an empty string to trigger Google deletion
+        self.assertEqual(goo_contact.extra_fields.get('escooter1'), "")
 
 if __name__ == '__main__':
     unittest.main()

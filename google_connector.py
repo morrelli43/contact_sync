@@ -166,9 +166,6 @@ class GoogleContactsConnector:
             key = field.get('key')
             value = field.get('value')
             if key and value and key in ['escooter1', 'escooter2', 'escooter3']:
-                # Prioritize 'Job Title' for escooter1 if it was already set
-                if key == 'escooter1' and 'escooter1' in contact.extra_fields:
-                    continue
                 contact.extra_fields[key] = value
         
         # Extract last modified time from metadata
@@ -337,17 +334,22 @@ class GoogleContactsConnector:
             person['phoneNumbers'] = []
         
         # Company and Job Title (eScooter 1)
-        org_entry = {}
-        if contact.company:
-            org_entry['name'] = contact.company
+        if contact.company or contact.extra_fields.get('escooter1'):
+            org_entry = {}
+            # Even if empty, passing the explicit empty string inside the object 
+            # might be required to wipe the field without wiping the whole organization object
             
-        escooter1 = contact.extra_fields.get('escooter1', '')
-        if escooter1:
-            org_entry['title'] = escooter1
-            
-        if org_entry:
+            # Google Contacts Hides the Job Title if the Company Name is completely empty. 
+            # We must trick it by passing a single whitespace if they have a scooter but no company.
+            comp = contact.company if contact.company else ''
+            if not comp and contact.extra_fields.get('escooter1'):
+                comp = ' '
+                
+            org_entry['name'] = comp
+            org_entry['title'] = contact.extra_fields.get('escooter1', '')
             person['organizations'] = [org_entry]
         else:
+            # If both are completely empty, passing an empty array deletes the entire Org block
             person['organizations'] = []
         
         # Addresses
@@ -381,10 +383,11 @@ class GoogleContactsConnector:
         # User Defined Fields (Custom Fields)
         person['userDefined'] = []
         for key in ['escooter1', 'escooter2', 'escooter3']:
-            if key in contact.extra_fields and contact.extra_fields[key]:
-                person['userDefined'].append({
-                    'key': key,
-                    'value': contact.extra_fields[key]
-                })
+            # ALWAYS send the key. If it's missing or empty, send it as an empty string to force Google to delete it.
+            val = contact.extra_fields.get(key, '')
+            person['userDefined'].append({
+                'key': key,
+                'value': val
+            })
         
         return person

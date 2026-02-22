@@ -76,7 +76,7 @@ class SyncEngine:
             # Drop the webform directly into the store so it has memory presence
             # then instantly push to Square.
             if not contact.normalized_phone:
-                print("WARNING: Webhook payload missing parseable phone, dropping.")
+                print("WARNING: Webhook payload missing parseable phone, dropping.")https://portainer.morrelli43iot.lan/#!/2/docker/containers/cc416a843a184bce3aabcc0e03524063d8d8eea802339480d60dec5e0ece9e5e/logs
                 return False
                 
             self.store.add_contact(contact, source_of_truth=source_name)
@@ -99,7 +99,7 @@ class SyncEngine:
             
         try:
             print("=" * 60)
-            print("Starting v2.2.1 synchronization cycle")
+            print("Starting v2.2.2 synchronization cycle")
             print("=" * 60)
             
             self.store.clear()
@@ -140,7 +140,7 @@ class SyncEngine:
             success = self.push_to_all_sources(unified_contacts)
             
             print("\n" + "=" * 60)
-            print(f"v2.2.1 Synchronization cycle completed. {len(unified_contacts)} unique contacts.")
+            print(f"v2.2.2 Synchronization cycle completed. {len(unified_contacts)} unique contacts.")
             print("=" * 60)
             return success
             

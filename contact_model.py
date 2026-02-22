@@ -129,10 +129,17 @@ class Contact:
             self.notes = other.notes if other.notes is not None else self.notes
             self.addresses = other.addresses if other.addresses else self.addresses
             
-            # For extra fields, explicitly overwrite (even with empty strings to clear).
+            # For extra fields, explicitly overwrite.
             # If `other` is the definitive source of truth, it completely clobbers the dictionary
             if source_of_truth and other_is_truth:
-                self.extra_fields = dict(other.extra_fields)
+                # To support explicitly tracking cleared attributes, we must ensure keys that exist
+                # in self but are missing in 'other' are explicitly set to '' so Google Connector clears them
+                for k in list(self.extra_fields.keys()):
+                    if k not in other.extra_fields:
+                        self.extra_fields[k] = ''
+                
+                for k, v in other.extra_fields.items():
+                    self.extra_fields[k] = v
             else:
                 for k, v in other.extra_fields.items():
                     self.extra_fields[k] = v

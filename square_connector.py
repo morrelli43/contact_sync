@@ -57,9 +57,14 @@ class SquareConnector:
                     print(f"  - Definition: {k} ({n})")
             
             # Match or create definitions
-            for i in range(1, 4):
-                key = f'escooter{i}'
-                name = f"eScooter {i}"
+            custom_fields = [
+                ('escooter1', 'eScooter 1'),
+                ('escooter2', 'eScooter 2'),
+                ('escooter3', 'eScooter 3'),
+                ('webform_notes', 'Webform Notes')
+            ]
+            
+            for key, name in custom_fields:
                 
                 # Try to match by key first, then by name
                 if key in existing_defs_by_key:
@@ -200,15 +205,21 @@ class SquareConnector:
                      value = attr.get('value')
                      if key and value is not None:
                          # Match literal key OR discovered (qualified) key
-                         mapped_key = rev_map.get(key) or (key if key in ['escooter1', 'escooter2', 'escooter3'] else None)
+                         mapped_key = rev_map.get(key) or (key if key in ['escooter1', 'escooter2', 'escooter3', 'webform_notes'] else None)
                          if mapped_key:
-                             contact.extra_fields[mapped_key] = str(value)
+                             if mapped_key == 'webform_notes':
+                                 contact.notes = str(value)
+                             else:
+                                 contact.extra_fields[mapped_key] = str(value)
              else:
                  for key, value_obj in custom_attrs.items():
                      val = value_obj.get('value') if isinstance(value_obj, dict) else value_obj
-                     mapped_key = rev_map.get(key) or (key if key in ['escooter1', 'escooter2', 'escooter3'] else None)
+                     mapped_key = rev_map.get(key) or (key if key in ['escooter1', 'escooter2', 'escooter3', 'webform_notes'] else None)
                      if mapped_key:
-                         contact.extra_fields[mapped_key] = str(val)
+                         if mapped_key == 'webform_notes':
+                             contact.notes = str(val)
+                         else:
+                             contact.extra_fields[mapped_key] = str(val)
         
         return contact if contact.email or (contact.first_name and contact.last_name) else None
     
@@ -314,22 +325,24 @@ class SquareConnector:
                 'country': country
             }
         
-        # Notes
-        if contact.notes:
-            customer['note'] = contact.notes[:500]
+        # Notes (Bypassing native Square notes as it maps to 'Other' which is uneditable, we use custom attributes instead)
+        # if contact.notes:
+        #     customer['note'] = contact.notes[:500]
             
         return customer
 
     def _sync_custom_attributes(self, customer_id: str, contact: Contact):
         """Sync custom attributes for a customer using the upsert endpoint."""
         attrs_to_sync = {k: v for k, v in contact.extra_fields.items() if k in ['escooter1', 'escooter2', 'escooter3']}
-        
+        if contact.notes is not None:
+            attrs_to_sync['webform_notes'] = contact.notes
+            
         if not attrs_to_sync:
             return
 
         print(f"Syncing {len(attrs_to_sync)} custom attributes for Square customer {customer_id}...")
         for key, value in attrs_to_sync.items():
-            if not value:
+            if value is None:
                 continue
                 
             # Use the discovered key (which might be a qualified key like 'square:xxx')

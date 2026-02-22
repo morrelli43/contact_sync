@@ -113,10 +113,13 @@ class GoogleContactsConnector:
         if phones:
             contact.phone = phones[0].get('value')
         
-        # Extract company
+        # Extract company and Job Title (escooter1)
         orgs = person.get('organizations', [])
         if orgs:
             contact.company = orgs[0].get('name')
+            title = orgs[0].get('title')
+            if title:
+                contact.extra_fields['escooter1'] = title
         
         # Extract addresses
         addresses = person.get('addresses', [])
@@ -163,6 +166,9 @@ class GoogleContactsConnector:
             key = field.get('key')
             value = field.get('value')
             if key and value and key in ['escooter1', 'escooter2', 'escooter3']:
+                # Prioritize 'Job Title' for escooter1 if it was already set
+                if key == 'escooter1' and 'escooter1' in contact.extra_fields:
+                    continue
                 contact.extra_fields[key] = value
         
         # Extract last modified time from metadata
@@ -328,9 +334,17 @@ class GoogleContactsConnector:
         else:
             person['phoneNumbers'] = []
         
-        # Company
+        # Company and Job Title (eScooter 1)
+        org_entry = {}
         if contact.company:
-            person['organizations'] = [{'name': contact.company}]
+            org_entry['name'] = contact.company
+            
+        escooter1 = contact.extra_fields.get('escooter1', '')
+        if escooter1:
+            org_entry['title'] = escooter1
+            
+        if org_entry:
+            person['organizations'] = [org_entry]
         else:
             person['organizations'] = []
         

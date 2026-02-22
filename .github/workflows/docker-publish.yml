@@ -120,7 +120,7 @@ jobs:
           GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
           # Service ports
-          EMAIL_SERIVCE_PORT: ${{ secrets.EMAIL_SERIVCE_PORT }}
+          EMAIL_SERVICE_PORT: ${{ secrets.EMAIL_SERVICE_PORT }}
           N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
           SQUARE_WEBHOOK_URL: ${{ secrets.SQUARE_WEBHOOK_URL }}
           SYNC_SERVICE_PORT: ${{ secrets.SYNC_SERVICE_PORT }}
@@ -129,6 +129,8 @@ jobs:
           SQUARE_ACCESS_TOKEN_VAL: ${{ secrets.SQUARE_ACCESS_TOKEN }}
           SQUARE_SIGNATURE_KEY_VAL: ${{ secrets.SQUARE_SIGNATURE_KEY }}
           SMTP_HOST_VAL: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT_VAL: ${{ secrets.SMTP_PORT }}
+          SMTP_SECURE_VAL: ${{ secrets.SMTP_SECURE }}
           SMTP_USER_VAL: ${{ secrets.SMTP_USER }}
           SMTP_PASS_VAL: ${{ secrets.SMTP_PASS }}
           SMTP_FROM_VAL: ${{ secrets.SMTP_FROM }}
@@ -172,14 +174,20 @@ jobs:
             # Contact Sync Secrets
             echo "SQUARE_ACCESS_TOKEN=$SQUARE_ACCESS_TOKEN_VAL" >> .env
             echo "SQUARE_SIGNATURE_KEY=$SQUARE_SIGNATURE_KEY_VAL" >> .env
+            echo "SQUARE_WEBHOOK_URL=$SQUARE_WEBHOOK_URL" >> .env
+            echo "SYNC_SERVICE_PORT=$SYNC_SERVICE_PORT" >> .env
             
             # Email Service / SMTP Secrets
             echo "SMTP_HOST=$SMTP_HOST_VAL" >> .env
+            echo "SMTP_PORT=$SMTP_PORT_VAL" >> .env
+            echo "SMTP_SECURE=$SMTP_SECURE_VAL" >> .env
             echo "SMTP_USER=$SMTP_USER_VAL" >> .env
             echo "SMTP_PASS=$SMTP_PASS_VAL" >> .env
             echo "SMTP_FROM=$SMTP_FROM_VAL" >> .env
             echo "EMAIL_RECIPIENT=$EMAIL_RECIPIENT_VAL" >> .env
             echo "PUSH_WEBHOOK_URL=$PUSH_WEBHOOK_URL_VAL" >> .env
+            echo "N8N_WEBHOOK_URL=$N8N_WEBHOOK_URL" >> .env
+            echo "EMAIL_SERVICE_PORT=$EMAIL_SERVICE_PORT" >> .env
 
             # Stop and remove existing containers
             echo "Stopping existing containers..."

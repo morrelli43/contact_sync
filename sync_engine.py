@@ -76,7 +76,7 @@ class SyncEngine:
             # Drop the webform directly into the store so it has memory presence
             # then instantly push to Square.
             if not contact.normalized_phone:
-                print("WARNING: Webhook payload missing parseable phone, dropping.")https://portainer.morrelli43iot.lan/#!/2/docker/containers/cc416a843a184bce3aabcc0e03524063d8d8eea802339480d60dec5e0ece9e5e/logs
+                print("WARNING: Webhook payload missing parseable phone, dropping.")
                 return False
                 
             self.store.add_contact(contact, source_of_truth=source_name)

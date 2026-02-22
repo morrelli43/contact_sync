@@ -1,53 +1,198 @@
-name: Docker Publish
+name: Build and Deploy
 
 on:
   push:
-    branches: ["main"]
-  release:
-    types: [published]
+    branches:
+      - main
+      - development
+      - live
+      - staging
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@v2
+      - name: Log in to the Container Registry
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v4
+      - name: Extract metadata for contact-sync
+        id: meta_sync
+        uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
           tags: |
             type=ref,event=branch
-            type=semver,pattern={{version}}
             type=sha,format=long
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+      - name: Build and push contact-sync
+        uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./contact-sync
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta_sync.outputs.tags }}
+          labels: ${{ steps.meta_sync.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: CACHE_BUST=${{ github.sha }}
+
+      - name: Extract metadata for email-service
+        id: meta_email
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}_email_service
+          tags: |
+            type=ref,event=branch
+            type=sha,format=long
+
+      - name: Build and push email-service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./email-service
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta_email.outputs.tags }}
+          labels: ${{ steps.meta_email.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: CACHE_BUST=${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    if: github.ref_name == 'staging' || github.ref_name == 'live' || github.ref_name == 'main'
+    environment: ${{ github.ref_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare connection
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST_URL: ${{ secrets.SSH_HOST_URL }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deployment_key
+          chmod 600 ~/.ssh/deployment_key
+          # Scan keys on the correct port (Default to 22 if not set)
+          PORT=${SSH_PORT:-22}
+          ssh-keyscan -p $PORT -H "$SSH_HOST_URL" >> ~/.ssh/known_hosts
+
+          # Print the fingerprint of the private key
+          echo "SSH Key Fingerprint:"
+          ssh-keygen -l -f ~/.ssh/deployment_key
+
+      - name: Deploy to Raspberry Pi
+        env:
+          SSH_HOST_URL: ${{ secrets.SSH_HOST_URL }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          TARGET_DIR: ${{ secrets.DOCKER_FOLDER_WEBFILES }}
+          GH_REPO: ${{ github.repository }}
+          # Determine variables based on branch
+          IMAGE_TAG: ${{ github.ref_name }}
+          GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          # Auth Secrets (Injected from GitHub Environments into the SSH block)
+          SQUARE_ACCESS_TOKEN_VAL: ${{ secrets.SQUARE_ACCESS_TOKEN }}
+          SQUARE_SIGNATURE_KEY_VAL: ${{ secrets.SQUARE_SIGNATURE_KEY }}
+          SMTP_HOST_VAL: ${{ secrets.SMTP_HOST }}
+          SMTP_USER_VAL: ${{ secrets.SMTP_USER }}
+          SMTP_PASS_VAL: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM_VAL: ${{ secrets.SMTP_FROM }}
+          EMAIL_RECIPIENT_VAL: ${{ secrets.EMAIL_RECIPIENT }}
+          PUSH_WEBHOOK_URL_VAL: ${{ secrets.PUSH_WEBHOOK_URL }}
+
+        run: |
+          # Define environment-specific variables
+          if [ "${{ github.ref_name }}" == "live" ] || [ "${{ github.ref_name }}" == "main" ]; then
+            CONTAINER_NAME="contact-sync-live"
+            # If the user has a target folder secret per environment, fallback to a sensible default
+            DEPLOY_DIR=${TARGET_DIR:-"deployments/contact-sync-live"}
+          elif [ "${{ github.ref_name }}" == "staging" ]; then
+            CONTAINER_NAME="contact-sync-staging"
+            DEPLOY_DIR=${TARGET_DIR:-"deployments/contact-sync-staging"}
+          else
+            CONTAINER_NAME="contact-sync-development"
+            DEPLOY_DIR=${TARGET_DIR:-"deployments/contact-sync-development"}
+          fi
+
+          # Use custom port if set, otherwise 22
+          PORT=${SSH_PORT:-22}
+          echo "Deploying to $SSH_HOST_URL:$PORT -> ~/$DEPLOY_DIR"
+
+          # 0. Ensure target directory exists
+          ssh -p $PORT -o StrictHostKeyChecking=no -i ~/.ssh/deployment_key $SSH_USERNAME@$SSH_HOST_URL "mkdir -p ~/$DEPLOY_DIR"
+
+          # 1. SCP the docker-compose.yml
+          scp -P $PORT -o StrictHostKeyChecking=no -i ~/.ssh/deployment_key docker-compose.yml $SSH_USERNAME@$SSH_HOST_URL:~/$DEPLOY_DIR/docker-compose.yml
+
+          # 2. SSH in to configure and start
+          ssh -p $PORT -o StrictHostKeyChecking=no -i ~/.ssh/deployment_key $SSH_USERNAME@$SSH_HOST_URL << EOF
+            cd ~/$DEPLOY_DIR
+            
+            # Create .env file with all variables needed by docker-compose
+            echo "Generating .env..."
+            echo "NODE_ENV=production" > .env
+            echo "GITHUB_REPOSITORY=$GH_REPO" >> .env
+            echo "IMAGE_TAG=$IMAGE_TAG" >> .env
+            
+            # Contact Sync Secrets
+            echo "SQUARE_ACCESS_TOKEN=$SQUARE_ACCESS_TOKEN_VAL" >> .env
+            echo "SQUARE_SIGNATURE_KEY=$SQUARE_SIGNATURE_KEY_VAL" >> .env
+            
+            # Email Service / SMTP Secrets
+            echo "SMTP_HOST=$SMTP_HOST_VAL" >> .env
+            echo "SMTP_USER=$SMTP_USER_VAL" >> .env
+            echo "SMTP_PASS=$SMTP_PASS_VAL" >> .env
+            echo "SMTP_FROM=$SMTP_FROM_VAL" >> .env
+            echo "EMAIL_RECIPIENT=$EMAIL_RECIPIENT_VAL" >> .env
+            echo "PUSH_WEBHOOK_URL=$PUSH_WEBHOOK_URL_VAL" >> .env
+
+            # Stop and remove existing containers
+            echo "Stopping existing containers..."
+            docker compose down || true
+            
+            # Login to GHCR to allow pulling
+            echo "$GIT_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull latest images
+            echo "Pulling latest images..."
+            docker compose pull
+            
+            # Start containers
+            echo "Starting environment..."
+            docker compose up -d --remove-orphans
+            
+            # Clean up old images
+            docker image prune -f
+            
+            # Show running containers
+            docker compose ps
+          EOF

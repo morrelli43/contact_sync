@@ -334,19 +334,22 @@ class GoogleContactsConnector:
             person['phoneNumbers'] = []
         
         # Company and Job Title (eScooter 1)
-        if contact.company or contact.extra_fields.get('escooter1'):
+        company_val = contact.company
+        title_val = contact.extra_fields.get('escooter1')
+        
+        if company_val or title_val:
             org_entry = {}
-            # Even if empty, passing the explicit empty string inside the object 
-            # might be required to wipe the field without wiping the whole organization object
-            
             # Google Contacts Hides the Job Title if the Company Name is completely empty. 
             # We must trick it by passing a single whitespace if they have a scooter but no company.
-            comp = contact.company if contact.company else ''
-            if not comp and contact.extra_fields.get('escooter1'):
+            comp = company_val if company_val else ''
+            if not comp and title_val:
                 comp = ' '
                 
-            org_entry['name'] = comp
-            org_entry['title'] = contact.extra_fields.get('escooter1', '')
+            if comp:
+                org_entry['name'] = comp
+            if title_val:
+                org_entry['title'] = title_val
+                
             person['organizations'] = [org_entry]
         else:
             # If both are completely empty, passing an empty array deletes the entire Org block
@@ -383,11 +386,13 @@ class GoogleContactsConnector:
         # User Defined Fields (Custom Fields)
         person['userDefined'] = []
         for key in ['escooter1', 'escooter2', 'escooter3']:
-            # ALWAYS send the key. If it's missing or empty, send it as an empty string to force Google to delete it.
             val = contact.extra_fields.get(key, '')
-            person['userDefined'].append({
-                'key': key,
-                'value': val
-            })
+            # Google API rejects value: "" with a 400 Invalid Argument. 
+            # To delete a custom field, simply omitting it from the appended array entirely is required.
+            if val:
+                person['userDefined'].append({
+                    'key': key,
+                    'value': val
+                })
         
         return person

@@ -17,7 +17,7 @@ services:
       # Mount the user's specific data directory to /app/env_files
       - ~/dockerhub/permadata/oys_contacts/env_files:/app/env_files
     ports:
-      - "${SYNC_SERVICE_PORT}:${SYNC_SERVICE_PORT}"
+      - "${SYNC_SERVICE_PORT:-7173}:${SYNC_SERVICE_PORT:-7173}"
 
   email-service:
     build: ./email-service
@@ -26,8 +26,8 @@ services:
     restart: unless-stopped
     environment:
       - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_SECURE=${SMTP_SECURE:-true}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
       - SMTP_FROM=${SMTP_FROM}
@@ -35,6 +35,6 @@ services:
       - SYNC_SERVICE_URL=http://contact-sync:7173/submit
       - PUSH_WEBHOOK_URL=${N8N_WEBHOOK_URL:-https://hooks.morrelli43media.com/webhook/message-center}
     ports:
-      - "${EMAIL_SERVICE_PORT}:${EMAIL_SERVICE_PORT}"
+      - "${EMAIL_SERVICE_PORT:-3002}:${EMAIL_SERVICE_PORT:-3002}"
     depends_on:
       - contact-sync

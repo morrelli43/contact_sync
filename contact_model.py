@@ -119,43 +119,56 @@ class Contact:
             other_wins = (other_mod > self_mod)
 
         if other_wins:
-            # If explicit source of truth, empty strings overwrite populated strings.
-            # Only fall back to self if `other` literally doesn't have the property initialized.
-            self.first_name = other.first_name if other.first_name is not None else self.first_name
-            self.last_name = other.last_name if other.last_name is not None else self.last_name
-            self.email = other.email if other.email is not None else self.email
-            self.phone = other.phone if other.phone is not None else self.phone
-            self.company = other.company if other.company is not None else self.company
-            self.notes = other.notes if other.notes is not None else self.notes
-            self.addresses = other.addresses if other.addresses else self.addresses
-            
-            # For extra fields, explicitly overwrite.
-            # If `other` is the definitive source of truth, it completely clobbers the dictionary
             if source_of_truth and other_is_truth:
-                # To support explicitly tracking cleared attributes, we must ensure keys that exist
-                # in self but are missing in 'other' are explicitly set to '' so Google Connector clears them
+                # Source of truth's values are ABSOLUTE. Even None means "explicitly cleared".
+                self.first_name = other.first_name
+                self.last_name = other.last_name
+                self.email = other.email
+                self.phone = other.phone
+                self.company = other.company
+                self.notes = other.notes
+                self.addresses = other.addresses if other.addresses else self.addresses
+                
+                # Clobber extra_fields: keys missing in other are explicitly cleared
                 for k in list(self.extra_fields.keys()):
                     if k not in other.extra_fields:
                         self.extra_fields[k] = ''
+                for k, v in other.extra_fields.items():
+                    self.extra_fields[k] = v
+            else:
+                # Non-authoritative merge: only overwrite if other has a value
+                self.first_name = other.first_name if other.first_name is not None else self.first_name
+                self.last_name = other.last_name if other.last_name is not None else self.last_name
+                self.email = other.email if other.email is not None else self.email
+                self.phone = other.phone if other.phone is not None else self.phone
+                self.company = other.company if other.company is not None else self.company
+                self.notes = other.notes if other.notes is not None else self.notes
+                self.addresses = other.addresses if other.addresses else self.addresses
                 
                 for k, v in other.extra_fields.items():
                     self.extra_fields[k] = v
-            else:
-                for k, v in other.extra_fields.items():
-                    self.extra_fields[k] = v
         else:
-            self.first_name = self.first_name if self.first_name is not None else other.first_name
-            self.last_name = self.last_name if self.last_name is not None else other.last_name
-            self.email = self.email if self.email is not None else other.email
-            self.phone = self.phone if self.phone is not None else other.phone
-            self.company = self.company if self.company is not None else other.company
-            self.notes = self.notes if self.notes is not None else other.notes
-            self.addresses = self.addresses or other.addresses
-            
-            # If self is the explicit source of truth, keep self's exact dictionary, destroying others
             if source_of_truth and self_is_truth:
-                 pass # self.extra_fields is already correct, ignore other
+                # Self IS the source of truth. Keep ALL of self's values unconditionally.
+                # Even if self.email is None, that means Square says "no email" — don't
+                # let Google's stale data overwrite it.
+                # self.fields are already correct; only merge addresses if self has none
+                self.addresses = self.addresses or other.addresses
+                
+                # extra_fields: keys in other but missing in self are explicitly cleared
+                for k in list(other.extra_fields.keys()):
+                    if k not in self.extra_fields:
+                        self.extra_fields[k] = ''
             else:
+                # Non-authoritative merge: only overwrite if self has a value
+                self.first_name = self.first_name if self.first_name is not None else other.first_name
+                self.last_name = self.last_name if self.last_name is not None else other.last_name
+                self.email = self.email if self.email is not None else other.email
+                self.phone = self.phone if self.phone is not None else other.phone
+                self.company = self.company if self.company is not None else other.company
+                self.notes = self.notes if self.notes is not None else other.notes
+                self.addresses = self.addresses or other.addresses
+                
                 for k, v in other.extra_fields.items():
                     if k not in self.extra_fields or not self.extra_fields[k]:
                         self.extra_fields[k] = v

@@ -349,20 +349,32 @@ class SquareConnector:
             sync_key = self.attribute_keys.get(key, key)
             
             try:
-                body = {
-                    "custom_attribute": {
-                        "value": str(value)
-                    }
-                }
-                print(f"  Upserting {sync_key} (from {key}) = '{value}'...")
-                result = self.client.customer_custom_attributes.upsert_customer_custom_attribute(
-                    customer_id=customer_id,
-                    key=sync_key,
-                    body=body
-                )
-                if result.is_success():
-                    print(f"    ✓ Successfully synced {key}")
+                # If the string is explicitly empty, Square requires a delete operation
+                if value == "":
+                    print(f"  Deleting {sync_key} (from {key})...")
+                    result = self.client.customer_custom_attributes.delete_customer_custom_attribute(
+                        customer_id=customer_id,
+                        key=sync_key
+                    )
+                    if result.is_success():
+                        print(f"    ✓ Successfully deleted {key}")
+                    else:
+                        print(f"    ✗ Failed to delete {key}: {result.errors}")
                 else:
-                    print(f"    ✗ Failed to sync {key} using key {sync_key}: {result.errors}")
+                    body = {
+                        "custom_attribute": {
+                            "value": str(value)
+                        }
+                    }
+                    print(f"  Upserting {sync_key} (from {key}) = '{value}'...")
+                    result = self.client.customer_custom_attributes.upsert_customer_custom_attribute(
+                        customer_id=customer_id,
+                        key=sync_key,
+                        body=body
+                    )
+                    if result.is_success():
+                        print(f"    ✓ Successfully synced {key}")
+                    else:
+                        print(f"    ✗ Failed to sync {key} using key {sync_key}: {result.errors}")
             except Exception as e:
-                print(f"    ✗ Error upserting Square attribute {key} ({sync_key}): {e}")
+                print(f"    ✗ Error syncing Square attribute {key} ({sync_key}): {e}")

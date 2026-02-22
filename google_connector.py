@@ -321,6 +321,8 @@ class GoogleContactsConnector:
                 'givenName': contact.first_name or '',
                 'familyName': contact.last_name or ''
             }]
+        else:
+            person['names'] = []
         
         # Email
         if contact.email:
@@ -367,6 +369,8 @@ class GoogleContactsConnector:
                 'postalCode': addr.get('postal_code', ''),
                 'country': addr.get('country', '')
             }]
+        else:
+            person['addresses'] = []
         
         # Notes
         if contact.notes:

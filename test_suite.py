@@ -105,5 +105,26 @@ class TestContactModelV2(unittest.TestCase):
         self.assertEqual(addr2['city'], 'Just Street')
         self.assertEqual(addr2['postal_code'], '3000')
 
+    def test_square_erases_google_data(self):
+        # If square has explicitly blanked out an email, Google shouldn't put it back
+        sq_contact = Contact()
+        sq_contact.first_name = "Adam"
+        sq_contact.email = ""  # Intentionally blank
+        sq_contact.extra_fields['escooter1'] = "" # Intentionally erased
+        sq_contact.source_ids['square'] = 'sq_1'
+        
+        go_contact = Contact()
+        go_contact.first_name = "Adam"
+        go_contact.email = "adam@adam.com" # Google has old data
+        go_contact.extra_fields['escooter1'] = "Old Scooter"
+        go_contact.source_ids['google'] = 'go_1'
+        
+        # When merging with Square as source of truth
+        sq_contact.merge_with(go_contact, source_of_truth='square')
+        
+        # Since Square is the truth, it should KEEP the blank values and destroy Google's
+        self.assertEqual(sq_contact.email, "")
+        self.assertEqual(sq_contact.extra_fields.get('escooter1', ''), "")
+
 if __name__ == '__main__':
     unittest.main()

@@ -319,14 +319,20 @@ class GoogleContactsConnector:
         # Email
         if contact.email:
             person['emailAddresses'] = [{'value': contact.email}]
-        
+        else:
+            person['emailAddresses'] = []
+            
         # Phone
         if contact.phone:
             person['phoneNumbers'] = [{'value': contact.phone}]
+        else:
+            person['phoneNumbers'] = []
         
         # Company
         if contact.company:
             person['organizations'] = [{'name': contact.company}]
+        else:
+            person['organizations'] = []
         
         # Addresses
         if contact.addresses:
@@ -351,15 +357,16 @@ class GoogleContactsConnector:
         # Notes
         if contact.notes:
             person['biographies'] = [{'value': contact.notes}]
+        else:
+            person['biographies'] = []
             
         # User Defined Fields (Custom Fields)
-        if contact.extra_fields:
-            person['userDefined'] = []
-            for key in ['escooter1', 'escooter2', 'escooter3']:
-                if key in contact.extra_fields and contact.extra_fields[key]:
-                    person['userDefined'].append({
-                        'key': key,
-                        'value': contact.extra_fields[key]
-                    })
+        person['userDefined'] = []
+        for key in ['escooter1', 'escooter2', 'escooter3']:
+            if key in contact.extra_fields and contact.extra_fields[key]:
+                person['userDefined'].append({
+                    'key': key,
+                    'value': contact.extra_fields[key]
+                })
         
         return person

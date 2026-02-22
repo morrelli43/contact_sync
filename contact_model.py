@@ -82,12 +82,12 @@ class Contact:
     
     def __init__(self, contact_id: str = None):
         self.contact_id = contact_id
-        self.first_name: str = ""
-        self.last_name: str = ""
-        self.email: str = ""
-        self.phone: str = ""
-        self.company: str = ""
-        self.notes: str = ""
+        self.first_name: Optional[str] = None
+        self.last_name: Optional[str] = None
+        self.email: Optional[str] = None
+        self.phone: Optional[str] = None
+        self.company: Optional[str] = None
+        self.notes: Optional[str] = None
         self.source_ids: Dict[str, str] = {}  # 'square' -> id, 'google' -> id
         self.last_modified: datetime = datetime.now(timezone.utc)
         self.addresses: List[Dict[str, str]] = []
@@ -119,29 +119,39 @@ class Contact:
             other_wins = (other_mod > self_mod)
 
         if other_wins:
-            self.first_name = other.first_name or self.first_name
-            self.last_name = other.last_name or self.last_name
-            self.email = other.email or self.email
-            self.phone = other.phone or self.phone
-            self.company = other.company or self.company
-            self.notes = other.notes or self.notes
-            self.addresses = other.addresses or self.addresses
+            # If explicit source of truth, empty strings overwrite populated strings.
+            # Only fall back to self if `other` literally doesn't have the property initialized.
+            self.first_name = other.first_name if other.first_name is not None else self.first_name
+            self.last_name = other.last_name if other.last_name is not None else self.last_name
+            self.email = other.email if other.email is not None else self.email
+            self.phone = other.phone if other.phone is not None else self.phone
+            self.company = other.company if other.company is not None else self.company
+            self.notes = other.notes if other.notes is not None else self.notes
+            self.addresses = other.addresses if other.addresses else self.addresses
             
-            # Explicitly overwrite extra fields from the winner
-            for k, v in other.extra_fields.items():
-                self.extra_fields[k] = v
+            # For extra fields, explicitly overwrite (even with empty strings to clear).
+            # If `other` is the definitive source of truth, it completely clobbers the dictionary
+            if source_of_truth and other_is_truth:
+                self.extra_fields = dict(other.extra_fields)
+            else:
+                for k, v in other.extra_fields.items():
+                    self.extra_fields[k] = v
         else:
-            self.first_name = self.first_name or other.first_name
-            self.last_name = self.last_name or other.last_name
-            self.email = self.email or other.email
-            self.phone = self.phone or other.phone
-            self.company = self.company or other.company
-            self.notes = self.notes or other.notes
+            self.first_name = self.first_name if self.first_name is not None else other.first_name
+            self.last_name = self.last_name if self.last_name is not None else other.last_name
+            self.email = self.email if self.email is not None else other.email
+            self.phone = self.phone if self.phone is not None else other.phone
+            self.company = self.company if self.company is not None else other.company
+            self.notes = self.notes if self.notes is not None else other.notes
             self.addresses = self.addresses or other.addresses
             
-            for k, v in other.extra_fields.items():
-                if k not in self.extra_fields or not self.extra_fields[k]:
-                    self.extra_fields[k] = v
+            # If self is the explicit source of truth, keep self's exact dictionary, destroying others
+            if source_of_truth and self_is_truth:
+                 pass # self.extra_fields is already correct, ignore other
+            else:
+                for k, v in other.extra_fields.items():
+                    if k not in self.extra_fields or not self.extra_fields[k]:
+                        self.extra_fields[k] = v
 
         # Source IDs are ALWAYS combined additively
         self.source_ids.update(other.source_ids)
@@ -186,12 +196,12 @@ class Contact:
     @staticmethod
     def from_dict(data: Dict) -> 'Contact':
         contact = Contact(data.get('contact_id'))
-        contact.first_name = data.get('first_name', "")
-        contact.last_name = data.get('last_name', "")
-        contact.email = data.get('email', "")
-        contact.phone = data.get('phone', "")
-        contact.company = data.get('company', "")
-        contact.notes = data.get('notes', "")
+        contact.first_name = data.get('first_name')
+        contact.last_name = data.get('last_name')
+        contact.email = data.get('email')
+        contact.phone = data.get('phone')
+        contact.company = data.get('company')
+        contact.notes = data.get('notes')
         contact.source_ids = data.get('source_ids', {})
         contact.addresses = data.get('addresses', [])
         contact.extra_fields = data.get('extra_fields', {})

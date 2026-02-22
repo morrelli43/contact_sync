@@ -99,7 +99,7 @@ class SyncEngine:
             
         try:
             print("=" * 60)
-            print("Starting V2 synchronization cycle")
+            print("Starting v2.1.0 synchronization cycle")
             print("=" * 60)
             
             self.store.clear()
@@ -126,8 +126,11 @@ class SyncEngine:
                     for c in google_contacts:
                         # Snapshot the exact payload Google gave us
                         c._original_google_payload = self.connectors['google']._contact_to_person(c)
-                        # Add them, but specify 'google' which yields to 'square' on conflict
-                        self.store.add_contact(c, source_of_truth='google')
+                        # Add them, enforcing Square as the persistent source of truth
+                        added_id = self.store.add_contact(c, source_of_truth='square')
+                        
+                        # Store the google payload on the unified canonical object so we can dirty-check later
+                        self.store.contacts[added_id]._original_google_payload = c._original_google_payload
                     print(f"  Loaded {len(google_contacts)} Google contacts.")
                 except Exception as e:
                     print(f"  Error fetching from Google: {e}")
@@ -137,7 +140,7 @@ class SyncEngine:
             success = self.push_to_all_sources(unified_contacts)
             
             print("\n" + "=" * 60)
-            print(f"V2 Synchronization cycle completed. {len(unified_contacts)} unique contacts.")
+            print(f"v2.1.0 Synchronization cycle completed. {len(unified_contacts)} unique contacts.")
             print("=" * 60)
             return success
             

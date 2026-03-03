@@ -57,6 +57,22 @@ services:
     ports:
       - "${NODEIFIER_SERVICE_PORT:-4312}:4312"
 
+  ops-forwarder:
+    build: ./ops-forwarder
+    image: ghcr.io/morrelli43/oys_live_subprocesses_ops_forwarder:${IMAGE_TAG:-main}
+    container_name: "ops-forwarder"
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    environment:
+      - PORT=4313
+      - OYS_OPS_URL=${OYS_OPS_URL:-http://localhost}
+      - OYS_OPS_PORT=${OYS_OPS_PORT:-3002}
+    ports:
+      - "${OPS_FORWARDER_PORT:-4313}:4313"
+
   message-router:
     build: ./message-router
     image: ghcr.io/morrelli43/oys_live_subprocesses_message_router:${IMAGE_TAG:-main}
@@ -71,12 +87,14 @@ services:
       - CONTACT_SYNC_URL=http://contact-sync:4310/send-it
       - EMAIL_SERVICE_URL=http://email-service:4311/send-it
       - NODEIFIER_URL=http://nodeifier:4312/send-it
+      - OPS_FORWARDER_URL=http://ops-forwarder:4313/send-it
     ports:
       - "${MESSAGE_ROUTER_PORT:-4300}:4300"
     depends_on:
       - contact-sync
       - email-service
       - nodeifier
+      - ops-forwarder
 
 networks:
   default:

@@ -55,6 +55,7 @@ app.post('/submit', async (req, res) => {
     const contactSyncUrl = process.env.CONTACT_SYNC_URL || 'http://contact-sync:4310/send-it';
     const emailServiceUrl = process.env.EMAIL_SERVICE_URL || 'http://email-service:4311/send-it';
     const nodeifierUrl = process.env.NODEIFIER_URL || 'http://nodeifier:4312/send-it';
+    const opsForwarderUrl = process.env.OPS_FORWARDER_URL || 'http://ops-forwarder:4313/send-it';
 
     // Fan out requests in background
     console.log(`[Message Router] Routing to sub-processes...`);
@@ -77,6 +78,11 @@ app.post('/submit', async (req, res) => {
         .then(() => console.log('✅ Routed to Email-Service'))
         .catch(err => console.error('⚠️ Email-Service routing failed:', err.message));
 
+    // 4. Forward to Operations Site
+    axios.post(opsForwarderUrl, rawData)
+        .then(() => console.log('✅ Routed to Ops-Forwarder'))
+        .catch(err => console.error('⚠️ Ops-Forwarder routing failed:', err.message));
+
     res.status(200).json({
         success: true,
         message: 'Submission received and routing in progress'
@@ -89,4 +95,5 @@ app.listen(PORT, () => {
     console.log(`Contact-Sync: ${process.env.CONTACT_SYNC_URL || 'http://contact-sync:4310/send-it'}`);
     console.log(`Email-Service: ${process.env.EMAIL_SERVICE_URL || 'http://email-service:4311/send-it'}`);
     console.log(`Nodeifier: ${process.env.NODEIFIER_URL || 'http://nodeifier:4312/send-it'}`);
+    console.log(`Ops-Forwarder: ${process.env.OPS_FORWARDER_URL || 'http://ops-forwarder:4313/send-it'}`);
 });

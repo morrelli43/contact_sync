@@ -9,7 +9,7 @@ app.use(cors());
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', service: 'ops-forwarder', version: '1.0.0' });
+    res.status(200).json({ status: 'ok', service: 'ops-forwarder', version: '1.0.1' });
 });
 
 /**

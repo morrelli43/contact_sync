@@ -2,7 +2,6 @@ services:
   contact-sync:
     build: ./contact-sync
     image: ghcr.io/morrelli43/oys_live_subprocesses:${IMAGE_TAG:-main}
-    container_name: "contact-sync"
     restart: unless-stopped
     environment:
       - ENABLE_GOOGLE=${ENABLE_GOOGLE:-true}
@@ -23,7 +22,6 @@ services:
   email-service:
     build: ./email-service
     image: ghcr.io/morrelli43/oys_live_subprocesses_email_service:${IMAGE_TAG:-main}
-    container_name: "email-service"
     restart: unless-stopped
     dns:
       - 8.8.8.8
@@ -45,7 +43,6 @@ services:
   nodeifier:
     build: ./nodeifier
     image: ghcr.io/morrelli43/oys_live_subprocesses_nodeifier:${IMAGE_TAG:-main}
-    container_name: "nodeifier"
     restart: unless-stopped
     dns:
       - 8.8.8.8
@@ -60,7 +57,6 @@ services:
   ops-forwarder:
     build: ./ops-forwarder
     image: ghcr.io/morrelli43/oys_live_subprocesses_ops_forwarder:${IMAGE_TAG:-main}
-    container_name: "ops-forwarder"
     restart: unless-stopped
     dns:
       - 8.8.8.8
@@ -76,7 +72,6 @@ services:
   message-router:
     build: ./message-router
     image: ghcr.io/morrelli43/oys_live_subprocesses_message_router:${IMAGE_TAG:-main}
-    container_name: "message-router"
     restart: unless-stopped
     dns:
       - 8.8.8.8
@@ -98,5 +93,5 @@ services:
 
 networks:
   default:
-    name: ${FRONTEND_LIVE:-oys_frontend_live}
+    name: ${DOCKER_NETWORK_NAME:-oys_frontend_live_net}
     external: true

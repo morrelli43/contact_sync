@@ -219,16 +219,17 @@ jobs:
         run: |
           # Define environment-specific variables
           if [ "${{ github.ref_name }}" == "live" ]; then
-            CONTAINER_NAME="oys_processes_live"
-            # If the user has a target folder secret per environment, fallback to a sensible default
             DEPLOY_DIR=${TARGET_DIR:-${DOCKER_FOLDER_WEBFILES:-"deployments/oys_processes_live"}}
           elif [ "${{ github.ref_name }}" == "staging" ]; then
-            CONTAINER_NAME="oys_processes_staging"
             DEPLOY_DIR=${TARGET_DIR:-${DOCKER_FOLDER_WEBFILES:-"deployments/oys_processes_staging"}}
           else
-            CONTAINER_NAME="oys_processes_development"
             DEPLOY_DIR=${TARGET_DIR:-${DOCKER_FOLDER_WEBFILES:-"deployments/oys_processes_development"}}
           fi
+
+          # Derive repo name for project naming (remove owner)
+          REPO_NAME=$(echo "$GH_REPO" | cut -d'/' -f2)
+          PROJECT_NAME="${REPO_NAME}-${IMAGE_TAG}"
+          NETWORK_NAME="${PROJECT_NAME}_net"
 
           # Use custom port if set, otherwise 22
           PORT=${SSH_PORT:-22}
@@ -278,29 +279,30 @@ jobs:
             echo "OPS_FORWARDER_PORT=$OPS_FORWARDER_PORT" >> .env.subprocesses
             echo "OYS_OPS_URL=$OYS_OPS_URL" >> .env.subprocesses
             echo "OYS_OPS_PORT=$OYS_OPS_PORT" >> .env.subprocesses
+            echo "DOCKER_NETWORK_NAME=$NETWORK_NAME" >> .env.subprocesses
 
             # Pre-create the bridge network so other stacks can share it as 'external'
             echo "Ensuring frontend bridge network exists..."
-            docker network create ${FRONTEND_LIVE:-oys_frontend_live} || true
+            docker network create $NETWORK_NAME || true
 
             # Stop and remove existing containers using the isolated compose file and project name
             echo "Stopping existing containers..."
-            docker compose -f docker-compose.subprocesses.yml --env-file .env.subprocesses -p subprocesses_\${IMAGE_TAG} down || true
+            docker compose -f docker-compose.subprocesses.yml --env-file .env.subprocesses -p $PROJECT_NAME down || true
             
             # Login to GHCR to allow pulling
             echo "$GIT_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Pull latest images
             echo "Pulling latest images..."
-            docker compose -f docker-compose.subprocesses.yml --env-file .env.subprocesses -p subprocesses_\${IMAGE_TAG} pull
+            docker compose -f docker-compose.subprocesses.yml --env-file .env.subprocesses -p $PROJECT_NAME pull
             
             # Start containers
             echo "Starting environment..."
-            docker compose -f docker-compose.subprocesses.yml --env-file .env.subprocesses -p subprocesses_\${IMAGE_TAG} up -d --remove-orphans
+            docker compose -f docker-compose.subprocesses.yml --env-file .env.subprocesses -p $PROJECT_NAME up -d --remove-orphans
             
             # Clean up old images
             docker image prune -f
             
             # Show running containers
-            docker compose -f docker-compose.subprocesses.yml --env-file .env.subprocesses -p subprocesses_\${IMAGE_TAG} ps
+            docker compose -f docker-compose.subprocesses.yml --env-file .env.subprocesses -p $PROJECT_NAME ps
           EOF

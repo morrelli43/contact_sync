@@ -229,7 +229,7 @@ jobs:
           # Derive repo name for project naming (remove owner)
           REPO_NAME=$(echo "$GH_REPO" | cut -d'/' -f2)
           PROJECT_NAME="${REPO_NAME}-${IMAGE_TAG}"
-          NETWORK_NAME="${PROJECT_NAME}_net"
+          NETWORK_NAME="${PROJECT_NAME}"
 
           # Use custom port if set, otherwise 22
           PORT=${SSH_PORT:-22}

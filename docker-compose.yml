@@ -20,6 +20,7 @@ services:
       - "${CONTACT_SYNC_PORT:-4310}:4310"
 
   email-service:
+    container_name: email-service
     build: ./email-service
     image: ghcr.io/morrelli43/oys_live_subprocesses_email_service:${IMAGE_TAG:-main}
     restart: unless-stopped
@@ -41,6 +42,7 @@ services:
       - contact-sync
 
   nodeifier:
+    container_name: nodeifier
     build: ./nodeifier
     image: ghcr.io/morrelli43/oys_live_subprocesses_nodeifier:${IMAGE_TAG:-main}
     restart: unless-stopped
@@ -55,6 +57,7 @@ services:
       - "${NODEIFIER_SERVICE_PORT:-4312}:4312"
 
   ops-forwarder:
+    container_name: ops-forwarder
     build: ./ops-forwarder
     image: ghcr.io/morrelli43/oys_live_subprocesses_ops_forwarder:${IMAGE_TAG:-main}
     restart: unless-stopped
@@ -70,6 +73,7 @@ services:
       - "${OPS_FORWARDER_PORT:-4313}:4313"
 
   message-router:
+    container_name: message-router
     build: ./message-router
     image: ghcr.io/morrelli43/oys_live_subprocesses_message_router:${IMAGE_TAG:-main}
     restart: unless-stopped

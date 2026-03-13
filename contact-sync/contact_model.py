@@ -105,23 +105,30 @@ class Contact:
         If other_is_authoritative is True, the incoming 'other' contact's fields ALWAYS win.
         Otherwise, we use source_of_truth and timestamp logic.
         """
+        # 2. Determine supremacy based on source existence and timestamps
+        other_is_truth = (source_of_truth in other.source_ids)
+        self_is_truth = (source_of_truth in self.source_ids)
+
         # 1. Authoritative Override
         if other_is_authoritative:
             other_wins = True
         else:
-            # 2. Determine supremacy based on source existence and timestamps
-            other_is_truth = (source_of_truth in other.source_ids)
-            self_is_truth = (source_of_truth in self.source_ids)
-            
             if other_is_truth and not self_is_truth:
                 other_wins = True
             elif self_is_truth and not other_is_truth:
                 other_wins = False
             elif self_is_truth and other_is_truth:
-                # Both claim to have source data. Check timestamps.
-                self_mod = self.last_modified if self.last_modified.tzinfo else self.last_modified.replace(tzinfo=timezone.utc)
-                other_mod = other.last_modified if other.last_modified.tzinfo else other.last_modified.replace(tzinfo=timezone.utc)
-                other_wins = (other_mod > self_mod)
+                # Both claim to have source data.
+                # If the incoming one isn't authoritative (e.g. Google mirror) 
+                # but we already have an authoritative version (e.g. Square), 
+                # the existing Square data WINS regardless of timestamps.
+                if not other_is_authoritative:
+                    other_wins = False
+                else:
+                    # Both are truth and equally authoritative (e.g. two Square contacts), check timestamps.
+                    self_mod = self.last_modified if self.last_modified.tzinfo else self.last_modified.replace(tzinfo=timezone.utc)
+                    other_mod = other.last_modified if other.last_modified.tzinfo else other.last_modified.replace(tzinfo=timezone.utc)
+                    other_wins = (other_mod > self_mod)
             else:
                 # Neither is truth, use timestamp
                 self_mod = self.last_modified if self.last_modified.tzinfo else self.last_modified.replace(tzinfo=timezone.utc)

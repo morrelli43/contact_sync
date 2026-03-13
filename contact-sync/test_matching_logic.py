@@ -44,13 +44,13 @@ class TestMatchingLogic(unittest.TestCase):
         c1.first_name = "Charlie"
         c1.source_ids['square'] = "sq_charli"
         c1.last_modified = datetime.now(timezone.utc) - timedelta(hours=1)
-        self.store.add_contact(c1)
+        self.store.add_contact(c1, authoritative=True)
 
         c2 = Contact()
         c2.first_name = "Charlie Updated"
         c2.source_ids['square'] = "sq_charli"
         c2.last_modified = datetime.now(timezone.utc)
-        cid = self.store.add_contact(c2)
+        cid = self.store.add_contact(c2, authoritative=True)
 
         self.assertEqual(len(self.store.contacts), 1)
         self.assertEqual(self.store.contacts[cid].first_name, "Charlie Updated")

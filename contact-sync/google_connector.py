@@ -188,7 +188,12 @@ class GoogleContactsConnector:
         if resource_name:
             contact.source_ids['google'] = resource_name
         
-        return contact if contact.email or (contact.first_name and contact.last_name) else None
+        return contact if (
+            contact.email or 
+            contact.normalized_phone or 
+            contact.first_name or 
+            contact.last_name
+        ) else None
     
     # Transient errors that should trigger a retry
     _RETRYABLE_EXCEPTIONS = (

@@ -226,7 +226,12 @@ class SquareConnector:
                          else:
                              contact.extra_fields[mapped_key] = str(val)
         
-        return contact if contact.email or (contact.first_name and contact.last_name) else None
+        return contact if (
+            contact.email or 
+            contact.normalized_phone or 
+            contact.first_name or 
+            contact.last_name
+        ) else None
     
     def push_contact(self, contact: Contact) -> bool:
         """Push a contact to Square."""

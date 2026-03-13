@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-      - development
-      - live
-      - staging
 
 env:
   REGISTRY: ghcr.io
@@ -147,7 +144,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    if: github.ref_name == 'staging' || github.ref_name == 'live' || github.ref_name == 'main'
+    if: github.ref_name == 'main'
     environment: ${{ github.ref_name }}
     steps:
       - name: Checkout repository
@@ -218,10 +215,8 @@ jobs:
 
         run: |
           # Define environment-specific variables
-          if [ "${{ github.ref_name }}" == "live" ]; then
+          if [ "${{ github.ref_name }}" == "main" ]; then
             DEPLOY_DIR=${TARGET_DIR:-${DOCKER_FOLDER_WEBFILES:-"deployments/oys_processes_live"}}
-          elif [ "${{ github.ref_name }}" == "staging" ]; then
-            DEPLOY_DIR=${TARGET_DIR:-${DOCKER_FOLDER_WEBFILES:-"deployments/oys_processes_staging"}}
           else
             DEPLOY_DIR=${TARGET_DIR:-${DOCKER_FOLDER_WEBFILES:-"deployments/oys_processes_development"}}
           fi

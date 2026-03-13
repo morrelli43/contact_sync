@@ -133,17 +133,20 @@ class SyncEngine:
                         # Snaphot the exact payload Square gave us
                         c._original_square_payload = self.connectors['square']._contact_to_customer(c)
                         c._original_square_attrs = {k: v for k, v in c.extra_fields.items() if k in ['escooter1', 'escooter2', 'escooter3']}
-                        added_id = self.store.add_contact(c, source_of_truth='square', authoritative=True)
-                        if added_id:
-                             # Preserve original payloads on the canonical contact in our temporary store
-                             self.store.contacts[added_id]._original_square_payload = c._original_square_payload
-                             self.store.contacts[added_id]._original_square_attrs = c._original_square_attrs
+                        try:
+                            added_id = self.store.add_contact(c, source_of_truth='square', authoritative=True)
+                            if added_id:
+                                 # Preserve original payloads on the canonical contact in our temporary store
+                                 self.store.contacts[added_id]._original_square_payload = c._original_square_payload
+                                 self.store.contacts[added_id]._original_square_attrs = c._original_square_attrs
 
-                        # Track all identifiers for orphan detection
-                        sq_id = c.source_ids.get('square')
-                        if sq_id: square_members['ids'].add(sq_id)
-                        if c.normalized_phone: square_members['phones'].add(c.normalized_phone)
-                        if c.email: square_members['emails'].add(c.email.lower().strip())
+                            # Track all identifiers for orphan detection
+                            sq_id = c.source_ids.get('square')
+                            if sq_id: square_members['ids'].add(sq_id)
+                            if c.normalized_phone: square_members['phones'].add(c.normalized_phone)
+                            if c.email: square_members['emails'].add(c.email.lower().strip())
+                        except Exception as inner_e:
+                            print(f"  [CRITICAL] Failed to process Square contact {c.first_name} {c.last_name}: {inner_e}")
 
                     print(f"  Loaded {len(square_contacts)} Square contacts into memory.")
                 except Exception as e:

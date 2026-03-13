@@ -111,9 +111,10 @@ class Contact:
     def merge_with(self, other: 'Contact', source_of_truth: str = 'square', other_is_authoritative: bool = False) -> 'Contact':
         """
         Merge this contact with another.
-        If other_is_authoritative is True, the incoming 'other' contact's fields ALWAYS win.
-        Otherwise, we use source_of_truth and timestamp logic.
         """
+        # [DEBUG_FINGERPRINT_V3]
+        print(f"  [DEBUG] Merging {self.first_name} with {other.first_name}")
+        
         # 2. Determine supremacy based on source existence and timestamps
         other_is_truth = False
         self_is_truth = False

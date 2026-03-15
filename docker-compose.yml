@@ -68,8 +68,7 @@ services:
       - 1.1.1.1
     environment:
       - PORT=4313
-      - OYS_OPS_URL=${OYS_OPS_URL:-onya-operations-live}
-      - OYS_OPS_PORT=${OYS_OPS_PORT:-3000}
+      - OPS_WEBHOOK_URL=${OPS_WEBHOOK_URL}
       - OPS_API_KEY=${OPS_API_KEY}
     ports:
       - "${OPS_FORWARDER_PORT:-4313}:4313"

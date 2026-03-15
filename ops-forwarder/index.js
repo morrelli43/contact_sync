@@ -23,10 +23,7 @@ app.post('/send-it', async (req, res) => {
 
     console.log(`\n[Ops-Forwarder] Received submission: ${payload.first_name || ''} ${payload.surname || ''}`);
 
-    // Build the target URL from env vars (OYS_OPS_URL + OYS_OPS_PORT)
-    const opsHost = process.env.OYS_OPS_URL || 'http://172.17.43.231';
-    const opsPort = process.env.OYS_OPS_PORT || '3002';
-    const targetUrl = `${opsHost}:${opsPort}/api/webhooks/customer`;
+    const targetUrl = process.env.OPS_WEBHOOK_URL || 'http://172.17.43.231:3002/api/webhooks/customer';
 
     // Forward only the recognised fields (drop anything unexpected)
     const forwardPayload = {
@@ -74,8 +71,7 @@ app.post('/send-it', async (req, res) => {
 
 const PORT = process.env.PORT || 4313;
 app.listen(PORT, () => {
-    const opsHost = process.env.OYS_OPS_URL || 'http://172.17.43.231';
-    const opsPort = process.env.OYS_OPS_PORT || '3002';
+    const targetUrl = process.env.OPS_WEBHOOK_URL || 'http://172.17.43.231:3002/api/webhooks/customer';
     console.log(`Ops-Forwarder listening on port ${PORT}`);
-    console.log(`Target Operations URL: ${opsHost}:${opsPort}/api/webhooks/customer`);
+    console.log(`Target Operations URL: ${targetUrl}`);
 });

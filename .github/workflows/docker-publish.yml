@@ -233,6 +233,7 @@ jobs:
           OPS_FORWARDER_PORT: ${{ vars.OPS_FORWARDER_PORT }}
           OYS_OPS_URL: ${{ vars.OYSOPSURL }}
           OYS_OPS_PORT: ${{ vars.OYSOPSPORT }}
+          OPS_API_KEY_VAL: ${{ secrets.OPS_API_KEY }}
 
         run: |
           # Define environment-specific variables
@@ -295,6 +296,7 @@ jobs:
             echo "OPS_FORWARDER_PORT=$OPS_FORWARDER_PORT" >> .env.subprocesses
             echo "OYS_OPS_URL=$OYS_OPS_URL" >> .env.subprocesses
             echo "OYS_OPS_PORT=$OYS_OPS_PORT" >> .env.subprocesses
+            echo "OPS_API_KEY=$OPS_API_KEY_VAL" >> .env.subprocesses
             echo "DOCKER_NETWORK_NAME=$NETWORK_NAME" >> .env.subprocesses
 
             # Pre-create the bridge network so other stacks can share it as 'external'

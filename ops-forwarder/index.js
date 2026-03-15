@@ -45,10 +45,13 @@ app.post('/send-it', async (req, res) => {
         ...(payload.issue_extra && { issue_extra: payload.issue_extra }),
     };
 
+    const apiKey = process.env.OPS_API_KEY;
+    const authHeaders = apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
+
     try {
         console.log(`[Ops-Forwarder] Forwarding to ${targetUrl}`);
         const response = await axios.post(targetUrl, forwardPayload, {
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...authHeaders },
             timeout: 10000, // 10 second timeout
         });
 

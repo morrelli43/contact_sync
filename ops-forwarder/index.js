@@ -25,21 +25,22 @@ app.post('/send-it', async (req, res) => {
 
     const targetUrl = process.env.OPS_WEBHOOK_URL || 'http://onya-operations-live:3000/api/webhooks/customer';
 
-    // Forward only the recognised fields (drop anything unexpected)
+    // Forward recognised fields (deprecated top-level escooter_make/model/issue are excluded)
     const forwardPayload = {
         first_name: payload.first_name,
         surname: payload.surname,
         number: payload.number,
+        ...(payload.date_time && { date_time: payload.date_time }),
         ...(payload.location && { location: payload.location }),
         ...(payload.address_line_1 && { address_line_1: payload.address_line_1 }),
         ...(payload.suburb && { suburb: payload.suburb }),
         ...(payload.state && { state: payload.state }),
         ...(payload.postcode && { postcode: payload.postcode }),
         ...(payload.country && { country: payload.country }),
-        escooter_make: payload.escooter_make,
-        escooter_model: payload.escooter_model,
-        issue: payload.issue,
-        ...(payload.issue_extra && { issue_extra: payload.issue_extra }),
+        scooter_count: payload.scooter_count,
+        has_photos: payload.has_photos,
+        total_photos_all: payload.total_photos_all,
+        scooters: payload.scooters,
     };
 
     const apiKey = process.env.OPS_API_KEY;

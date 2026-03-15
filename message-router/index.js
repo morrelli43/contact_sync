@@ -23,12 +23,28 @@ app.post('/submit', async (req, res) => {
     const {
         first_name, surname, number, location,
         address_line_1, suburb, state, postcode, country,
-        escooter_make, escooter_model, issue, issue_extra
+        date_time, scooter_count, has_photos, total_photos_all,
+        scooters = []
     } = rawData;
+
+    // --- Build per-scooter fields for contact-sync (escooter1, escooter2, escooter3) ---
+    const escooterFields = {};
+    scooters.slice(0, 3).forEach((s, i) => {
+        const label = `${s.make || 'Unknown'} ${s.model || ''}`.trim();
+        escooterFields[`escooter${i + 1}`] = label;
+    });
+
+    // --- Build notes summary from scooters ---
+    const notesText = scooters.map(s => {
+        const label = `${s.make || 'Unknown'} ${s.model || ''}`.trim() || 'Unknown Scooter';
+        const issues = (s.issues || []).join(', ');
+        const extra = s.issue_extra ? ` (${s.issue_extra})` : '';
+        return `${label}: ${issues}${extra}`;
+    }).join(' | ') || 'No Issue';
 
     // --- 1. Map to contact-sync ---
     const syncData = {
-        first_name: first_name,
+        first_name,
         last_name: surname,
         phone: number,
         email: "",
@@ -38,16 +54,18 @@ app.post('/submit', async (req, res) => {
         postcode: postcode || "",
         country: country || "",
         company: "",
-        notes: `${issue || 'No Issue'}: ${issue_extra || ''}`,
-        escooter1: `${escooter_make || ''} ${escooter_model || ''}`.trim(),
+        notes: notesText,
+        ...escooterFields,
         timestamp: new Date().toISOString()
     };
 
     // --- 2. Map to nodeifier (Alerts) ---
+    const scooterSummary = scooters.map(s => `${s.make || '?'} ${s.model || ''}`.trim()).join(', ');
+    const issueSummary = scooters.map(s => (s.issues || []).join('/')).join(', ');
     const alertPayload = {
         app: "pushbullet",
         target: "dandroid",
-        title: "NEW: " + `${escooter_make || ''} ${escooter_model || ''}`.trim() + ", " + ` ${issue || ''}`,
+        title: `NEW: ${scooterSummary}, ${issueSummary}`,
         body: `Name: ${first_name} ${surname}\nPhone: ${number}\n`
     };
 

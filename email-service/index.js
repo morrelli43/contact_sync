@@ -13,7 +13,8 @@ app.get('/health', (req, res) => {
 });
 
 app.post('/send-it', async (req, res) => {
-    const { first_name, surname, number, location, address_line_1, suburb, state, postcode, country, escooter_make, escooter_model, issue, issue_extra, website_url } = req.body;
+    const { first_name, surname, number, location, address_line_1, suburb, state, postcode, country,
+            scooters = [], date_time, website_url } = req.body;
 
     // Spam Protection: Honeypot Check
     if (website_url) {
@@ -37,31 +38,33 @@ app.post('/send-it', async (req, res) => {
         from: `"${first_name} ${surname}" <${process.env.SMTP_FROM}>`,
         to: process.env.EMAIL_RECIPIENT || 'bookings@onyascoot.com',
         subject: `New Booking Enquiry - ${first_name} ${surname}`,
-        text: `
-New Booking Enquiry Received:
-
-Name: ${first_name} ${surname}
-Phone: ${number}
-Location: ${location}
-Scooter: ${escooter_make} ${escooter_model}
-Issue: ${issue}
-Extra Details: ${issue_extra || 'None'}
-
--- 
-On Ya Scoot Booking System
-        `,
-        html: `
+        text: (() => {
+            const scooterLines = scooters.map(s => {
+                const label = `${s.make || 'Unknown'} ${s.model || ''}`.trim() || 'Unknown Scooter';
+                const issues = (s.issues || []).join(', ');
+                const extra = s.issue_extra ? `\n  Extra: ${s.issue_extra}` : '';
+                const photos = s.total_photos > 0 ? `\n  Photos: ${s.total_photos}` : '';
+                return `Scooter ${s.scooter_num}: ${label}\n  Issues: ${issues}${extra}${photos}`;
+            }).join('\n\n');
+            return `New Booking Enquiry Received:\n\nDate: ${date_time || 'N/A'}\nName: ${first_name} ${surname}\nPhone: ${number}\nLocation: ${location || 'N/A'}\n\n${scooterLines}\n\n--\nOn Ya Scoot Booking System`;
+        })(),
+        html: (() => {
+            const scooterRows = scooters.map(s => {
+                const label = `${s.make || 'Unknown'} ${s.model || ''}`.trim() || 'Unknown Scooter';
+                const issues = (s.issues || []).join(', ');
+                const extra = s.issue_extra ? `<br><em>Extra: ${s.issue_extra}</em>` : '';
+                const photos = s.total_photos > 0 ? `<br>Photos: ${s.total_photos}` : '';
+                return `<tr><td style="padding:6px 12px;vertical-align:top"><strong>Scooter ${s.scooter_num}</strong></td><td style="padding:6px 12px">${label}<br>${issues}${extra}${photos}</td></tr>`;
+            }).join('');
+            return `
             <h3>New Booking Enquiry Received</h3>
+            <p><strong>Date:</strong> ${date_time || 'N/A'}</p>
             <p><strong>Name:</strong> ${first_name} ${surname}</p>
             <p><strong>Phone:</strong> ${number}</p>
-            <p><strong>Location:</strong> ${location}</p>
-            <p><strong>Scooter:</strong> ${escooter_make} ${escooter_model}</p>
-            <p><strong>Issue:</strong> ${issue}</p>
-            <p><strong>Extra Details:</strong> ${issue_extra || 'None'}</p>
-            <br>
-            <hr>
-            <p><small>On Ya Scoot Booking System</small></p>
-        `,
+            <p><strong>Location:</strong> ${location || 'N/A'}</p>
+            <table style="border-collapse:collapse;margin-top:12px">${scooterRows}</table>
+            <br><hr><p><small>On Ya Scoot Booking System</small></p>`;
+        })()
     };
 
     try {

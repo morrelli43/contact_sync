@@ -59,37 +59,24 @@ app.post('/submit', async (req, res) => {
         timestamp: new Date().toISOString()
     };
 
-    // --- 2. Map to nodeifier (Alerts) ---
-    const scooterSummary = scooters.map(s => `${s.make || '?'} ${s.model || ''}`.trim()).join(', ');
-    const issueSummary = scooters.map(s => (s.issues || []).join('/')).join(', ');
-    const alertPayload = {
-        app: "pushbullet",
-        target: "dandroid",
-        title: `NEW: ${scooterSummary}, ${issueSummary}`,
-        body: `Name: ${first_name} ${surname}\nPhone: ${number}\n`
-    };
-
     // Define service URLs
-    const contactSyncUrl = process.env.CONTACT_SYNC_URL || 'http://contact-sync:4310/send-it';
-    const emailServiceUrl = process.env.EMAIL_SERVICE_URL || 'http://email-service:4311/send-it';
-    const nodeifierUrl = process.env.NODEIFIER_URL || 'http://nodeifier:4312/send-it';
-    const opsForwarderUrl = process.env.OPS_FORWARDER_URL || 'http://ops-forwarder:4313/send-it';
+    const contactSyncUrl   = process.env.CONTACT_SYNC_URL    || 'http://contact-sync:4310/send-it';
+    const emailServiceUrl  = process.env.EMAIL_SERVICE_URL   || 'http://email-service:4311/send-it';
+    const nodeifierUrl     = process.env.NODEIFIER_URL       || 'http://nodeifier:4312/send-it';
+    const opsForwarderUrl  = process.env.OPS_FORWARDER_URL   || 'http://ops-forwarder:4313/send-it';
+    const dontknowUrl      = process.env.DONTKNOW_URL        || 'http://dontknowescooter:4314';
+    const dontknowPublicUrl = process.env.DONTKNOW_PUBLIC_URL || '';
 
     // Fan out requests in background
     console.log(`[Message Router] Routing to sub-processes...`);
 
-    // We respond success immediately to the frontend, but wait for downstream to trigger in background
-    // for robust logging and potential retry logic in the future.
+    // Respond immediately to the frontend
+    res.status(200).json({ success: true, message: 'Submission received and routing in progress' });
 
     // 1. Sync to Contacts
     axios.post(contactSyncUrl, syncData)
         .then(() => console.log('✅ Routed to Contact-Sync'))
         .catch(err => console.error('⚠️ Contact-Sync routing failed:', err.message));
-
-    // 2. Trigger Nodeifier (Alerts)
-    axios.post(nodeifierUrl, alertPayload)
-        .then(() => console.log('✅ Routed to Nodeifier'))
-        .catch(err => console.error('⚠️ Nodeifier routing failed:', err.message));
 
     // 3. Trigger Email-Service
     axios.post(emailServiceUrl, rawData)
@@ -104,10 +91,67 @@ app.post('/submit', async (req, res) => {
             console.error('⚠️ Ops-Forwarder routing failed:', detail);
         });
 
-    res.status(200).json({
-        success: true,
-        message: 'Submission received and routing in progress'
-    });
+    // 2. Build and send Pushbullet alert (async — fetches QR photo URLs first)
+    (async () => {
+        // Fetch QR photo filenames for each scooter that has a session
+        const scooterPhotos = await Promise.all(scooters.map(async s => {
+            if (!s.qr_session_id || s.qr_photos === 0) return [];
+            try {
+                const resp = await axios.get(`${dontknowUrl}/photo-poll/${s.qr_session_id}`, { timeout: 5000 });
+                return (resp.data.photos || []).map((filename, i) => ({
+                    num: i + 1,
+                    url: `${dontknowPublicUrl}/photo-file/${filename}`
+                }));
+            } catch (e) {
+                console.error(`[Message Router] Could not fetch photos for session ${s.qr_session_id}:`, e.message);
+                return [];
+            }
+        }));
+
+        // Title: first issue of first scooter + suburb
+        const firstIssue = scooters[0]?.issues?.[0] || 'New Job';
+        const alertTitle = `🆕 ${firstIssue}${suburb ? ' - ' + suburb : ''}`;
+
+        // Body
+        const multiJob = scooters.length > 1;
+        const lines = [];
+
+        lines.push(`${first_name} ${surname}`);
+        if (suburb) lines.push(suburb);
+        lines.push(`tel:${number}`);
+
+        if (multiJob) {
+            lines.push('');
+            lines.push(`--- ${scooters.length} Jobs ---`);
+        }
+
+        scooters.forEach((s, i) => {
+            const photos = scooterPhotos[i] || [];
+            const issues = (s.issues || []).join(', ');
+            const label  = `${s.make || ''} ${s.model || ''}`.trim();
+
+            lines.push('');
+            if (multiJob) lines.push(`Job ${s.scooter_num}:`);
+            if (issues)   lines.push(issues);
+            if (!s.dont_know_mode && label) lines.push(label);
+            if (s.dont_know_mode && photos.length > 0) {
+                const photoLinks = photos.map(p => `${p.num} (${p.url})`).join(', ');
+                lines.push(`Unknown: ${photoLinks}`);
+            }
+            if (s.issue_extra) lines.push(s.issue_extra);
+        });
+
+        const alertPayload = {
+            app:    'pushbullet',
+            target: 'dandroid',
+            title:  alertTitle,
+            body:   lines.join('\n')
+        };
+
+        axios.post(nodeifierUrl, alertPayload)
+            .then(() => console.log('✅ Routed to Nodeifier'))
+            .catch(err => console.error('⚠️ Nodeifier routing failed:', err.message));
+    })();
 });
 
 const PORT = process.env.PORT || 4300;
@@ -117,4 +161,5 @@ app.listen(PORT, () => {
     console.log(`Email-Service: ${process.env.EMAIL_SERVICE_URL || 'http://email-service:4311/send-it'}`);
     console.log(`Nodeifier: ${process.env.NODEIFIER_URL || 'http://nodeifier:4312/send-it'}`);
     console.log(`Ops-Forwarder: ${process.env.OPS_FORWARDER_URL || 'http://ops-forwarder:4313/send-it'}`);
+    console.log(`Dontknow: ${process.env.DONTKNOW_URL || 'http://dontknowescooter:4314'}`);
 });

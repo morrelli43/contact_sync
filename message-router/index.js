@@ -98,9 +98,9 @@ app.post('/submit', async (req, res) => {
             if (!s.qr_session_id || s.qr_photos === 0) return [];
             try {
                 const resp = await axios.get(`${dontknowUrl}/photo-poll/${s.qr_session_id}`, { timeout: 5000 });
-                return (resp.data.photos || []).map((filename, i) => ({
+                return (resp.data.photoUrls || []).map((p, i) => ({
                     num: i + 1,
-                    url: `${dontknowPublicUrl}/photo-file/${filename}`
+                    url: p.url || `${dontknowPublicUrl}/photo-file/${p.filename}`
                 }));
             } catch (e) {
                 console.error(`[Message Router] Could not fetch photos for session ${s.qr_session_id}:`, e.message);

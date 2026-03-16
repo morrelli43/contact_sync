@@ -133,7 +133,14 @@ app.get('/photo-poll/:sessionId', (req, res) => {
     const sessionId = (req.params.sessionId || '').replace(/[^a-f0-9-]/gi, '').slice(0, 36);
     const session   = photoSessions.get(sessionId);
     if (!session) return res.status(404).json({ error: 'Session not found' });
-    res.json({ count: session.photos.length, photos: session.photos });
+
+    const baseUrl = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
+    const photoUrls = session.photos.map(filename => ({
+        filename,
+        url: baseUrl ? `${baseUrl}/photo-file/${filename}` : null
+    }));
+
+    res.json({ count: session.photos.length, photos: session.photos, photoUrls });
 });
 
 // Serve a QR session photo for desktop thumbnail preview

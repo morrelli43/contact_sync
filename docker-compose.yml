@@ -17,7 +17,7 @@ services:
       - DOCKER_FOLDER_WEBFILES=${DOCKER_FOLDER_WEBFILES:-/app/env_files}
     volumes:
       # Mount the user's specific data directory to /app/env_files
-      - ~/dockerhub/permadata/oys_contacts/env_files:/app/env_files
+      - ${DOCKER_FOLDER_WEBFILES}/oys_contacts/env_files:/app/env_files
     ports:
       - "${CONTACT_SYNC_PORT:-4310}:4310"
 

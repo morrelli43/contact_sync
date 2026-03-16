@@ -28,6 +28,9 @@ ENV/
 # IDE
 .vscode/
 .idea/
+
+# Google credentials (never commit these)
+.credentials/
 *.swp
 *.swo
 *~

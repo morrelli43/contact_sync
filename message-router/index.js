@@ -60,11 +60,11 @@ app.post('/submit', async (req, res) => {
     };
 
     // Define service URLs
-    const contactSyncUrl   = process.env.CONTACT_SYNC_URL    || 'http://contact-sync:4310/send-it';
-    const emailServiceUrl  = process.env.EMAIL_SERVICE_URL   || 'http://email-service:4311/send-it';
-    const nodeifierUrl     = process.env.NODEIFIER_URL       || 'http://nodeifier:4312/send-it';
-    const opsForwarderUrl  = process.env.OPS_FORWARDER_URL   || 'http://ops-forwarder:4313/send-it';
-    const dontknowUrl      = process.env.DONTKNOW_URL        || 'http://dontknowescooter:4314';
+    const contactSyncUrl = process.env.CONTACT_SYNC_URL || 'http://contact-sync:4310/send-it';
+    const emailServiceUrl = process.env.EMAIL_SERVICE_URL || 'http://email-service:4311/send-it';
+    const nodeifierUrl = process.env.NODEIFIER_URL || 'http://nodeifier:4312/send-it';
+    const opsForwarderUrl = process.env.OPS_FORWARDER_URL || 'http://ops-forwarder:4313/send-it';
+    const dontknowUrl = process.env.DONTKNOW_URL || 'http://dontknowescooter:4314';
     const dontknowPublicUrl = process.env.DONTKNOW_PUBLIC_URL || process.env.PHOTOS_PUBLIC_BASE_URL || '';
 
     // Fan out requests in background
@@ -102,8 +102,8 @@ app.post('/submit', async (req, res) => {
                     const baseUrl = (dontknowPublicUrl || '').replace(/\/$/, '');
                     return {
                         num: i + 1,
-                        url: (p.url && p.url.startsWith('http')) 
-                            ? p.url 
+                        url: (p.url && p.url.startsWith('http'))
+                            ? p.url
                             : `${baseUrl}/photo-file/${encodeURIComponent(p.filename)}`
                     };
                 });
@@ -123,7 +123,7 @@ app.post('/submit', async (req, res) => {
 
         lines.push(`${first_name} ${surname}`);
         if (suburb) lines.push(suburb);
-        lines.push(`tel:${number}`);
+        lines.push(number);
 
         if (multiJob) {
             lines.push('');
@@ -133,24 +133,24 @@ app.post('/submit', async (req, res) => {
         scooters.forEach((s, i) => {
             const photos = scooterPhotos[i] || [];
             const issues = (s.issues || []).join(', ');
-            const label  = `${s.make || ''} ${s.model || ''}`.trim();
+            const label = `${s.make || ''} ${s.model || ''}`.trim();
 
             lines.push('');
             if (multiJob) lines.push(`Job ${s.scooter_num}:`);
-            if (issues)   lines.push(issues);
+            if (issues) lines.push(issues);
             if (!s.dont_know_mode && label) lines.push(label);
             if (s.dont_know_mode && photos.length > 0) {
-                const photoLinks = photos.map(p => `Image-${p.num} (${p.url})`).join(', ');
+                const photoLinks = photos.map(p => `[Image-${p.num}](${p.url})`).join(', ');
                 lines.push(`Unknown: ${photoLinks}`);
             }
             if (s.issue_extra) lines.push(`Issue Note: ${s.issue_extra}`);
         });
 
         const alertPayload = {
-            app:    'pushbullet',
+            app: 'pushbullet',
             target: 'dandroid',
-            title:  alertTitle,
-            body:   lines.join('\n')
+            title: alertTitle,
+            body: lines.join('\n')
         };
 
         axios.post(nodeifierUrl, alertPayload)

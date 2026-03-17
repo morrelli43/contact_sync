@@ -140,7 +140,7 @@ app.post('/submit', async (req, res) => {
             if (issues)   lines.push(issues);
             if (!s.dont_know_mode && label) lines.push(label);
             if (s.dont_know_mode && photos.length > 0) {
-                const photoLinks = photos.map(p => `${p.num} (${p.url})`).join(', ');
+                const photoLinks = photos.map(p => `Image-${p.num} (${p.url})`).join(', ');
                 lines.push(`Unknown: ${photoLinks}`);
             }
             if (s.issue_extra) lines.push(`Issue Note: ${s.issue_extra}`);

@@ -138,7 +138,7 @@ app.get('/photo-poll/:sessionId', (req, res) => {
     const publicBase = (process.env.PUBLIC_URL || process.env.DONTKNOW_PUBLIC_URL || '').replace(/\/$/, '');
     const photoUrls = session.photos.map((filename, i) => ({
         filename,
-        url: publicBase ? `${publicBase}/photo-file/${filename}` : null
+        url: publicBase ? `${publicBase}/photo-file/${encodeURIComponent(filename)}` : null
     }));
 
     res.json({ count: session.photos.length, photos: session.photos, photoUrls });
@@ -147,7 +147,8 @@ app.get('/photo-poll/:sessionId', (req, res) => {
 // Serve a QR session photo for desktop thumbnail preview
 app.get('/photo-file/:filename', (req, res) => {
     const safeName = path.basename(req.params.filename);
-    if (!/^ph_[a-f0-9-]+_\d+\.(jpg|jpeg|png|webp|gif|heic)$/i.test(safeName)) {
+    // Be more permissive: allow alphanumeric, underscores, hyphens, and spaces (for safety)
+    if (!/^[a-z0-9 _.-]+\.(jpg|jpeg|png|webp|gif|heic)$/i.test(safeName)) {
         return res.status(403).end();
     }
     res.sendFile(path.join(uploadDir, safeName), err => { if (err) res.status(404).end(); });

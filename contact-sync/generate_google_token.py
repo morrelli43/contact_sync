@@ -31,8 +31,8 @@ def generate_token(cred_file='credentials.json', token_file='token.json'):
         token.write(creds.to_json())
     
     print(f"\n✅ Successfully generated new {token_file}!")
-    print("\nYou can now upload this file to your Raspberry Pi at:")
-    print("  ~/dockerhub/permadata/oys_contacts/env_files/token.json")
+    print("\nYou can now upload this file to your server's mapped directory.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Refresh Google OAuth Token')

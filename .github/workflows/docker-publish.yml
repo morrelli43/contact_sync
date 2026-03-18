@@ -196,30 +196,31 @@ jobs:
           SSH_HOST_URL: ${{ secrets.SSH_HOST_URL }}
           SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
+          DOCKER_FOLDER_WEBFILES: ${{ vars.DOCKER_FOLDER_WEBFILES }}
         run: |
           PORT=${SSH_PORT:-22}
-          REMOTE_CRED_DIR="~/dockerhub/permadata/oys_contacts/env_files"
+          REMOTE_CRED_DIR="${DOCKER_FOLDER_WEBFILES:-deployments/oys_subprocesses}/oys_contacts/env_files"
 
           # Ensure destination exists on the remote server
           ssh -p $PORT -o StrictHostKeyChecking=no -i ~/.ssh/deployment_key \
             $SSH_USERNAME@$SSH_HOST_URL "mkdir -p $REMOTE_CRED_DIR"
 
-          if [ -f .credentials/credentials.json ]; then
+          if [ -f oys_contacts/env_files/credentials.json ]; then
             scp -P $PORT -o StrictHostKeyChecking=no -i ~/.ssh/deployment_key \
-              .credentials/credentials.json \
+              oys_contacts/env_files/credentials.json \
               "$SSH_USERNAME@$SSH_HOST_URL:$REMOTE_CRED_DIR/credentials.json"
             echo "✅ credentials.json uploaded"
           else
-            echo "⚠️ .credentials/credentials.json not found, skipping"
+            echo "⚠️ oys_contacts/env_files/credentials.json not found, skipping"
           fi
 
-          if [ -f .credentials/token.json ]; then
+          if [ -f oys_contacts/env_files/token.json ]; then
             scp -P $PORT -o StrictHostKeyChecking=no -i ~/.ssh/deployment_key \
-              .credentials/token.json \
+              oys_contacts/env_files/token.json \
               "$SSH_USERNAME@$SSH_HOST_URL:$REMOTE_CRED_DIR/token.json"
             echo "✅ token.json uploaded"
           else
-            echo "⚠️ .credentials/token.json not found, skipping"
+            echo "⚠️ oys_contacts/env_files/token.json not found, skipping"
           fi
 
       - name: Deploy to Raspberry Pi

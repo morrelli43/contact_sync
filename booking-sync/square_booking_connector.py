@@ -36,31 +36,27 @@ class SquareBookingConnector:
         
         try:
             # We want bookings that are upcoming
-            # API: SearchBookings
-            body = {
-                "query": {
-                    "filter": {
-                        "start_at": {
-                            "start_at": datetime.now(timezone.utc).isoformat()
-                        },
-                        "status": "ACCEPTED" # Or filter multiple
-                    }
-                },
-                "limit": limit
-            }
+            # v30 SDK might not have search_bookings or it might be restricted, using list_bookings
+            start_at_min = datetime.now(timezone.utc).isoformat()
             
-            result = self.client.bookings.search_bookings(body=body)
+            result = self.client.bookings.list_bookings(
+                start_at_min=start_at_min,
+                limit=limit
+            )
             
             if result.is_success():
-                square_bookings = result.body.get('bookings', [])
-                print(f"Found {len(square_bookings)} upcoming Square bookings.")
+                all_upcoming = result.body.get('bookings', [])
+                # Filter for ACCEPTED status in code since list_bookings filter is limited in some SDK versions
+                square_bookings = [b for b in all_upcoming if b.get('status') == 'ACCEPTED']
+                
+                print(f"Found {len(all_upcoming)} total upcoming bookings, {len(square_bookings)} are accepted.")
                 
                 for sb in square_bookings:
                     booking = self._convert_to_booking(sb)
                     if booking:
                         bookings.append(booking)
             else:
-                print(f"Error searching Square bookings: {result.errors}")
+                print(f"Error listing Square bookings: {result.errors}")
                 
         except Exception as e:
             print(f"Error connecting to Square API (Bookings): {e}")

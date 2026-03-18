@@ -15,6 +15,7 @@ class Booking:
         self.customer_email: Optional[str] = None
         self.customer_phone: Optional[str] = None
         self.customer_address: Optional[str] = None
+        self.customer_suburb: Optional[str] = None
         
         self.service_id: Optional[str] = None
         self.service_name: Optional[str] = "Service"
@@ -33,8 +34,15 @@ class Booking:
         
     @property
     def summary(self) -> str:
-        """The title of the calendar event."""
-        return f"{self.service_name} - {self.customer_name}"
+        """Name | Suburb | eScooter - Service"""
+        parts = []
+        if self.customer_name: parts.append(self.customer_name)
+        if self.customer_suburb: parts.append(self.customer_suburb)
+        
+        detail = f"{self.escooter or 'eScooter'} - {self.service_name}"
+        parts.append(detail)
+        
+        return " | ".join(parts)
 
     def to_dict(self) -> Dict:
         return {
@@ -55,7 +63,8 @@ class Booking:
             'total_price': self.total_price,
             'escooter': self.escooter,
             'services_list': self.services_list,
-            'service_ids': self.service_ids
+            'service_ids': self.service_ids,
+            'customer_suburb': self.customer_suburb
         }
 
     @staticmethod
@@ -76,6 +85,7 @@ class Booking:
         booking.escooter = data.get('escooter')
         booking.services_list = data.get('services_list', [])
         booking.service_ids = data.get('service_ids', [])
+        booking.customer_suburb = data.get('customer_suburb')
         
         if data.get('start_at'):
             booking.start_at = datetime.fromisoformat(data['start_at'])

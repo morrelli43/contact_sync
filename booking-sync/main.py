@@ -79,10 +79,12 @@ class SyncEngine:
             
             # Address formatting
             addr = cust_data.get('address', {})
+            booking.customer_suburb = addr.get('locality') # Suburb/City
+            
             addr_parts = [
                 addr.get('address_line_1'),
                 addr.get('address_line_2'),
-                addr.get('locality'), # City
+                booking.customer_suburb,
                 addr.get('administrative_district_level_1'), # State
                 addr.get('postal_code')
             ]

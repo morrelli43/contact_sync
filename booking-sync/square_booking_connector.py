@@ -102,7 +102,10 @@ class SquareBookingConnector:
     def get_customer_details(self, customer_id: str) -> dict:
         """Fetch customer details from Square."""
         try:
-            result = self.client.customers.retrieve_customer(customer_id=customer_id)
+            result = self.client.customers.retrieve_customer(
+                customer_id=customer_id,
+                include_custom_attributes=True
+            )
             if result.is_success():
                 return result.body.get('customer', {})
         except Exception as e:

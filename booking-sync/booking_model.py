@@ -39,7 +39,13 @@ class Booking:
         if self.customer_name: parts.append(self.customer_name)
         if self.customer_suburb: parts.append(self.customer_suburb)
         
-        detail = f"{self.escooter or 'eScooter'} - {self.service_name}"
+        # Filter "Commuter eScooter" from service name
+        service_display = self.service_name.replace("Commuter eScooter", "").strip(" -")
+        
+        # Use escooter model if available, otherwise default to "eScooter"
+        escooter_display = self.escooter if self.escooter and self.escooter.lower() != "unknown escooter" else "eScooter"
+        
+        detail = f"{escooter_display} - {service_display}"
         parts.append(detail)
         
         return " | ".join(parts)

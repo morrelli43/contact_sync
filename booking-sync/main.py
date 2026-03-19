@@ -118,10 +118,21 @@ class SyncEngine:
             if len(booking.services_list) > 1:
                 booking.service_name += f" (+{len(booking.services_list)-1} more)"
 
-        # eScooter Extraction from notes
-        if booking.notes:
+        # eScooter Extraction (Prefer eScooter1 custom field)
+        escooter = None
+        if cust_data and 'custom_attribute_values' in cust_data:
+            # Check for eScooter1 (key can be a UUID or a slug depending on setup, but often maps to slug)
+            # We look for any attribute with "escooter" in the name or key
+            for key, attr in cust_data.get('custom_attribute_values', {}).items():
+                if 'escooter' in key.lower():
+                    val = attr.get('value')
+                    if val:
+                        escooter = val
+                        break
+        
+        # Fallback to extraction from notes
+        if not escooter and booking.notes:
             notes_lower = booking.notes.lower()
-            escooter = None
             
             # Look for specific prefixes
             for prefix in ['scooter:', 'escooter:', 'model:', 'bike:']:
@@ -142,8 +153,8 @@ class SyncEngine:
                                 escooter = line.strip()
                                 break
                         if escooter: break
-            
-            booking.escooter = escooter or "Unknown eScooter"
+        
+        booking.escooter = escooter or "Unknown eScooter"
 
 def run_sync_loop(engine, interval_secs):
     """Background thread to perform periodic full-sync loops."""

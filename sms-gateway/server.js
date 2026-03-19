@@ -106,7 +106,7 @@ app.post('/api/send-sms', (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { deviceId, address, body } = req.body;
+  const { deviceId, address, body, mediaUrl } = req.body;
 
   if (!deviceId || !address || !body) {
     return res.status(400).json({ error: 'Missing deviceId, address, or body' });
@@ -117,15 +117,21 @@ app.post('/api/send-sms', (req, res) => {
     return res.status(404).json({ error: `Device ${deviceId} is not connected` });
   }
 
+  // Support both SMS and MMS actions
+  const action = mediaUrl ? 'send_mms' : 'send_sms';
   const payload = {
-    action: 'send_sms',
-    data: { address, body }
+    action,
+    data: { 
+      address, 
+      body,
+      ...(mediaUrl && { mediaUrl })
+    }
   };
 
   try {
     ws.send(JSON.stringify(payload));
-    console.log(`📤 Relay signal sent to device ${deviceId}:`, payload);
-    res.json({ status: 'sent', deviceId });
+    console.log(`📤 Relay signal (${action}) sent to device ${deviceId}:`, payload);
+    res.json({ status: 'sent', action, deviceId });
   } catch (err) {
     console.error(`❌ Error sending to device ${deviceId}:`, err.message);
     res.status(500).json({ error: 'Failed to relay message to device' });

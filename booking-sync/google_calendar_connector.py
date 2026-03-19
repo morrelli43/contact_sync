@@ -35,13 +35,42 @@ class GoogleCalendarConnector:
     def authenticate(self):
         """Authenticate with Google API."""
         creds = None
-        if os.path.exists(self.token_file):
-            creds = Credentials.from_authorized_user_file(self.token_file, self.SCOPES)
         
+        # 1. Check if token file exists and is not empty
+        if os.path.exists(self.token_file):
+            if os.path.getsize(self.token_file) == 0:
+                print(f"  ⚠️ Warning: Token file {self.token_file} is empty.")
+            else:
+                try:
+                    creds = Credentials.from_authorized_user_file(self.token_file, self.SCOPES)
+                except Exception as e:
+                    print(f"  ⚠️ Error loading token from {self.token_file}: {e}")
+        
+        # 2. Refresh or validate
         if not creds or not creds.valid:
-            # If we don't have valid credentials, we can't do much in a headless environment.
-            # We assume the user has run the token update script.
-            raise ValueError(f"Invalid or missing Google tokens in {self.token_file}. Run update_google_token.py first.")
+            # If we have an expired token with a refresh token, try refreshing it first
+            if creds and creds.expired and creds.refresh_token:
+                try:
+                    from google.auth.transport.requests import Request
+                    creds.refresh(Request())
+                except Exception as e:
+                    print(f"  ⚠️ Error refreshing token: {e}")
+                    creds = None # Force error below
+            
+            if not creds or not creds.valid:
+                # Check credentials file integrity
+                if not os.path.exists(self.credentials_file) or os.path.getsize(self.credentials_file) == 0:
+                    raise FileNotFoundError(
+                        f"Google credentials file {self.credentials_file} is missing or empty. "
+                        "Check your GitHub Secrets (GOOGLE_CREDENTIALS_JSON) and deployment logs."
+                    )
+                
+                # In a headless server environment, we can't run flow.run_local_server.
+                # We must rely on the provided token.json.
+                raise ValueError(
+                    f"Invalid or missing Google tokens in /app/env_files/{self.token_file}. "
+                    "Ensure your GOOGLE_TOKEN_JSON secret is correctly populated in GitHub."
+                )
             
         self.service = build('calendar', 'v3', credentials=creds)
         

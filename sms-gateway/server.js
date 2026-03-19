@@ -38,21 +38,25 @@ server.on('upgrade', (request, socket, head) => {
   const apiKey = queryApiKey || headerApiKey;
   const deviceId = queryDeviceId || headerDeviceId;
 
-  console.log(`📡 WebSocket Upgrade request: ${request.url}`);
+  console.log(`📡 WS Upgrade: ${request.url}`);
+  console.log(`   - Extracted API Key (first 4): ${apiKey ? apiKey.substring(0, 4) + '...' : 'MISSING'}`);
+  console.log(`   - Extracted Device ID: ${deviceId || 'MISSING'}`);
 
   if (!apiKey || apiKey !== API_KEY) {
-    console.log(`❌ WS Auth Failed (Key mismatch or missing)`);
+    console.log(`❌ Auth check failed. (Expected vs Actual mask match: ${apiKey === API_KEY})`);
     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
     socket.destroy();
     return;
   }
 
   if (!deviceId) {
-    console.log(`❌ WS Missing Device ID`);
+    console.log(`❌ Device ID check failed. (MISSING)`);
     socket.write('HTTP/1.1 400 Bad Request: Missing Device ID\r\n\r\n');
     socket.destroy();
     return;
   }
+
+  console.log(`✅ Handshake successful for ${deviceId}`);
 
   wss.handleUpgrade(request, socket, head, (ws) => {
     ws.deviceId = deviceId;

@@ -218,34 +218,30 @@ jobs:
           SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           DOCKER_FOLDER_WEBFILES: ${{ vars.DOCKER_FOLDER_WEBFILES }}
+          SECRET_TOKEN: ${{ secrets.GOOGLE_TOKEN_JSON }}
+          SECRET_CREDS: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
         run: |
           PORT=${SSH_PORT:-22}
           # Remove trailing slash from DOCKER_FOLDER_WEBFILES if present
           WEBFILES_DIR="${DOCKER_FOLDER_WEBFILES%/}"
           REMOTE_CRED_DIR="${WEBFILES_DIR:-deployments/oys_subprocesses}/oys_contacts/env_files"
-          
-          echo "Debug: REMOTE_CRED_DIR is $REMOTE_CRED_DIR"
-          echo "Debug: SSH_USERNAME is $SSH_USERNAME"
-
-          # Diagnostic info
-          ssh -p $PORT -o StrictHostKeyChecking=no -i ~/.ssh/deployment_key \
-            $SSH_USERNAME@$SSH_HOST_URL "echo 'Current User:' && whoami && echo 'Directory Permissions:' && ls -ld $REMOTE_CRED_DIR || echo 'Directory does not exist' && ls -ld \$(dirname $REMOTE_CRED_DIR)"
 
           # Ensure destination exists on the remote server
           ssh -p $PORT -o StrictHostKeyChecking=no -i ~/.ssh/deployment_key \
             $SSH_USERNAME@$SSH_HOST_URL "mkdir -p $REMOTE_CRED_DIR"
-           # Create credentials directory if not present
+
+          # Create local directories
           mkdir -p oys_contacts/env_files
 
-          # Write secrets to files
-          if [ -n "${{ secrets.GOOGLE_TOKEN_JSON }}" ]; then
-            echo '${{ secrets.GOOGLE_TOKEN_JSON }}' > oys_contacts/env_files/token.json
-            echo "✅ token.json extracted from secrets"
+          # Write secrets to files using local env vars (safest for multiline)
+          if [ -n "$SECRET_TOKEN" ]; then
+            echo "$SECRET_TOKEN" > oys_contacts/env_files/token.json
+            echo "✅ token.json extracted"
           fi
 
-          if [ -n "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" ]; then
-            echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > oys_contacts/env_files/credentials.json
-            echo "✅ credentials.json extracted from secrets"
+          if [ -n "$SECRET_CREDS" ]; then
+            echo "$SECRET_CREDS" > oys_contacts/env_files/credentials.json
+            echo "✅ credentials.json extracted"
           fi
 
           # Upload to server
@@ -254,8 +250,6 @@ jobs:
               oys_contacts/env_files/token.json \
               "$SSH_USERNAME@$SSH_HOST_URL:$REMOTE_CRED_DIR/token.json"
             echo "🚀 token.json pushed to server"
-          else
-            echo "⚠️ GOOGLE_TOKEN_JSON secret missing!"
           fi
 
           if [ -f oys_contacts/env_files/credentials.json ]; then
@@ -263,8 +257,6 @@ jobs:
               oys_contacts/env_files/credentials.json \
               "$SSH_USERNAME@$SSH_HOST_URL:$REMOTE_CRED_DIR/credentials.json"
             echo "🚀 credentials.json pushed to server"
-          else
-            echo "⚠️ GOOGLE_CREDENTIALS_JSON secret missing!"
           fi
 
       - name: Deploy to Raspberry Pi

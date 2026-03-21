@@ -139,6 +139,21 @@ services:
     ports:
       - "${SMS_GATEWAY_PORT:-4330}:4330"
 
+  booking-webhook:
+    build: ./booking-sync/webhook
+    image: ghcr.io/morrelli43/onyascoot-subprocesses_booking_webhook:${IMAGE_TAG:-main}
+    restart: unless-stopped
+    environment:
+      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
+      - GOOGLE_CREDENTIALS_FILE=${GOOGLE_CREDENTIALS_FILE:-/app/env_files/credentials.json}
+      - GOOGLE_TOKEN_FILE=${GOOGLE_TOKEN_FILE:-/app/env_files/token.json}
+    volumes:
+      - ${DOCKER_FOLDER_WEBFILES:-.}/oys_contacts/env_files:/app/env_files
+    ports:
+      - "5001:5001"
+    depends_on:
+      - booking-sync
+
 networks:
   default:
     name: ${DOCKER_NETWORK_NAME:-oys_frontend_live_net}

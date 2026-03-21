@@ -32,11 +32,13 @@ class SyncEngine:
         try:
             # 1. Fetch upcoming Square bookings
             square_bookings = self.square.fetch_upcoming_bookings()
-            
+            print(f"[DEBUG] Square bookings fetched: {[b.booking_id for b in square_bookings]}")
+
             # 2. Fetch existing Google events to find matches and avoid duplicates
             # We look for events with our private property 'square_booking_id'
             google_events = self.google.fetch_events()
-            
+            print(f"[DEBUG] Google events fetched: {[e.get('id') for e in google_events]}")
+
             # Map square_id -> google_event_id
             existing_mapping = {}
             for event in google_events:
@@ -44,24 +46,27 @@ class SyncEngine:
                 sq_id = props.get('square_booking_id')
                 if sq_id:
                     existing_mapping[sq_id] = event.get('id')
-            
+
             # 3. Process Square bookings
             for booking in square_bookings:
+                print(f"[DEBUG] Processing booking: {booking.booking_id}")
                 # Enrich with customer/service details
                 self._enrich_booking(booking)
-                
+
                 # Check mapping
                 if booking.booking_id in existing_mapping:
                     booking.google_event_id = existing_mapping[booking.booking_id]
-                    # Check if summary or start_at changed? 
-                    # For simplicity, we just upsert. Google API update is efficient.
-                
+                    print(f"[DEBUG] Booking {booking.booking_id} already exists in Google, updating event {booking.google_event_id}")
+                else:
+                    print(f"[DEBUG] Booking {booking.booking_id} does not exist in Google, creating new event")
+
                 # Upsert to Google
                 new_event_id = self.google.upsert_booking_as_event(booking)
                 booking.google_event_id = new_event_id
-                
+                print(f"[DEBUG] Upserted booking {booking.booking_id} as Google event {new_event_id}")
+
             print(f"[{datetime.now()}] Sync completed successfully.")
-            
+
         except Exception as e:
             print(f"Error during sync: {e}")
             

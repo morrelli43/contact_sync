@@ -58,6 +58,16 @@ class WebhookServer:
             print(f"[WebhookServer] Error processing /send-it: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500
 
+    def _forward_to_calendar_sync(self, payload_dict):
+        """Forward realtime square event to calendar-sync."""
+        import requests
+        url = os.getenv('CALENDAR_SYNC_WEBHOOK_URL', 'http://calendar-sync:5001/webhooks/square')
+        try:
+            requests.post(url, json=payload_dict, timeout=5)
+            print("  --> Successfully forwarded to Calendar Sync")
+        except Exception as e:
+            print(f"  --> Failed to forward to Calendar Sync: {e}")
+
     def handle_square(self):
         """Process real-time Square customer events."""
         print("\n[WebhookServer] Received Square Event")
@@ -74,6 +84,9 @@ class WebhookServer:
                 print("  Empty or invalid JSON payload")
                 return jsonify({'status': 'ignored', 'reason': 'no_json'}), 200
                 
+            # Forward to Calendar Sync so both services get instant triggers
+            self._run_in_background(self._forward_to_calendar_sync, payload)
+
             event_type = payload.get('type')
             merchant_id = payload.get('merchant_id', 'Unknown')
             print(f"  Event Type: {event_type} (Merchant: {merchant_id})")

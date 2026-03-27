@@ -127,6 +127,7 @@ class SyncEngine:
             cust_data = self.customer_cache[booking.customer_id]
             booking.customer_name = f"{cust_data.get('given_name', '')} {cust_data.get('family_name', '')}".strip() or "Customer"
             booking.customer_phone = cust_data.get('phone_number')
+            booking.customer_email = cust_data.get('email_address')
             
             # Address formatting
             addr = cust_data.get('address', {})

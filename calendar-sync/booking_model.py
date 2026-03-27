@@ -34,18 +34,15 @@ class Booking:
         
     @property
     def summary(self) -> str:
-        """Name | Suburb | eScooter - Service"""
-        parts = []
-        if self.customer_name: parts.append(self.customer_name)
-        if self.customer_suburb: parts.append(self.customer_suburb)
+        """Firstname Surname, Suburb - eScooter name | Services requested."""
+        name_suburb = self.customer_name or "Customer"
+        if self.customer_suburb:
+            name_suburb += f", {self.customer_suburb}"
         
         # Use escooter model if available, otherwise default to "eScooter"
         escooter_display = self.escooter if self.escooter and self.escooter.lower() != "unknown escooter" else "eScooter"
         
-        detail = f"{escooter_display} - {self.service_name}"
-        parts.append(detail)
-        
-        return " | ".join(parts)
+        return f"{name_suburb} - {escooter_display} | {self.service_name}"
 
     def to_dict(self) -> Dict:
         return {

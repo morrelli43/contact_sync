@@ -112,22 +112,22 @@ class GoogleCalendarConnector:
         # Build Itinerary
         itinerary = []
         for service in booking.services_list:
-            itinerary.append(f"• {service}")
+            itinerary.append(f"{service}")
         itinerary_str = "\n".join(itinerary) if itinerary else "None"
         
-        # Build Job Summary description
+        # Build description
         description_parts = [
-            "--- JOB SUMMARY ---",
-            f"Price: ${booking.total_price:.2f}",
-            f"eScooter: {booking.escooter or 'N/A'}",
-            f"\n--- SERVICES & ITEMS ---",
-            itinerary_str,
-            "\n--- CONTACT INFO ---",
-            f"Customer: {booking.customer_name}",
-            f"Phone: {booking.customer_phone or 'N/A'}",
-            f"Address: {booking.customer_address or 'N/A'}",
-            f"\nNotes: {booking.notes}" if booking.notes else ""
+            "---- CONTACT INFO ----",
+            f"{booking.customer_name or 'N/A'}",
+            f"{booking.customer_phone or 'N/A'}",
+            f"{booking.customer_email or 'N/A'}",
+            "",
+            f"---- SERVICES (${booking.total_price:.2f}) ----",
+            itinerary_str
         ]
+        
+        if booking.notes:
+            description_parts.extend(["", booking.notes])
         
         event_body = {
             'summary': booking.summary,

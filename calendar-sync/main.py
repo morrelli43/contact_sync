@@ -82,8 +82,10 @@ class SyncEngine:
                 if sq_id:
                     existing_mapping[sq_id] = event.get('id')
 
-            # 3. Process Square bookings
+            # 3. Process Square bookings and track active ones
+            seen_square_ids = set()
             for booking in square_bookings:
+                seen_square_ids.add(booking.booking_id)
                 print(f"[DEBUG] Processing booking: {booking.booking_id}")
                 # Enrich with customer/service details
                 self._enrich_booking(booking)
@@ -99,6 +101,15 @@ class SyncEngine:
                 new_event_id = self.google.upsert_booking_as_event(booking)
                 booking.google_event_id = new_event_id
                 print(f"[DEBUG] Upserted booking {booking.booking_id} as Google event {new_event_id}")
+
+            # 4. Clean up deleted/canceled bookings from Google Calendar
+            for sq_id, google_event_id in existing_mapping.items():
+                if sq_id not in seen_square_ids:
+                    print(f"[DEBUG] Booking {sq_id} no longer accepted/upcoming in Square. Deleting Google event {google_event_id}")
+                    try:
+                        self.google.delete_event(google_event_id)
+                    except Exception as del_e:
+                        print(f"  --> Failed to delete {google_event_id}: {del_e}")
 
             print(f"[{datetime.now()}] Sync completed successfully.")
 

@@ -118,38 +118,60 @@ app.post('/submit', async (req, res) => {
             }
         }));
 
-        // Title: first issue of first scooter + suburb
-        const firstIssue = scooters[0]?.issues?.[0] || 'New Job';
-        const alertTitle = `🆕 ${firstIssue}${suburb ? ' - ' + suburb : ''}`;
-
-        // Body
         const multiJob = scooters.length > 1;
+        let alertTitle = "";
         const lines = [];
+        
+        const fullAddress = [address_line_1, suburb, state, postcode].filter(Boolean).join(', ');
+        const emailAddress = rawData.email || '';
 
-        lines.push(`${first_name} ${surname}`);
-        if (suburb) lines.push(suburb);
-        lines.push(number);
-
-        if (multiJob) {
-            lines.push('');
-            lines.push(`--- ${scooters.length} Jobs ---`);
-        }
-
-        scooters.forEach((s, i) => {
-            const photos = scooterPhotos[i] || [];
+        if (!multiJob && scooters.length === 1) {
+            const s = scooters[0];
+            const label = `${s.make || 'Unknown'} ${s.model || ''}`.trim() || 'Unknown eScooter';
             const issues = (s.issues || []).join(', ');
-            const label = `${s.make || ''} ${s.model || ''}`.trim();
-
-            lines.push('');
-            if (multiJob) lines.push(`Job ${s.scooter_num}:`);
-            if (issues) lines.push(issues);
-            if (!s.dont_know_mode && label) lines.push(label);
-            if (s.dont_know_mode && photos.length > 0) {
-                const photoLinks = photos.map(p => `[Image-${p.num}](${p.url})`).join(', ');
-                lines.push(`Unknown: ${photoLinks}`);
+            let servicesText = issues;
+            if (s.issue_extra) {
+                servicesText += ` (${s.issue_extra})`;
             }
-            if (s.issue_extra) lines.push(`Issue Note: ${s.issue_extra}`);
-        });
+            
+            alertTitle = `${suburb ? suburb + ' - ' : ''}${label} | ${issues || 'Service Requested'}`;
+            
+            lines.push(`${first_name} ${surname}`);
+            if (servicesText) lines.push(servicesText);
+            lines.push(number);
+            if (emailAddress) lines.push(emailAddress);
+            if (fullAddress) lines.push(fullAddress);
+            
+            const photos = scooterPhotos[0] || [];
+            if (photos.length > 0) {
+                lines.push('');
+                const photoLinks = photos.map(p => `[Image-${p.num}](${p.url})`).join(', ');
+                lines.push(`Photos: ${photoLinks}`);
+            }
+        } else {
+            alertTitle = `${suburb ? suburb + ' - ' : ''}${scooters.length}x eScooters`;
+            
+            lines.push(`${first_name} ${surname}`);
+            lines.push(number);
+            if (emailAddress) lines.push(emailAddress);
+            if (fullAddress) lines.push(fullAddress);
+            
+            scooters.forEach((s, i) => {
+                lines.push('');
+                const label = `${s.make || 'Unknown'} ${s.model || ''}`.trim() || 'Unknown eScooter';
+                const issues = (s.issues || []).join(', ');
+                const extra = s.issue_extra ? ` (${s.issue_extra})` : '';
+                const photos = scooterPhotos[i] || [];
+                
+                lines.push(`${i + 1}. ${label}`);
+                if (issues || extra) lines.push(`${issues}${extra}`);
+                
+                if (photos.length > 0) {
+                    const photoLinks = photos.map(p => `[Image-${p.num}](${p.url})`).join(', ');
+                    lines.push(`Photos: ${photoLinks}`);
+                }
+            });
+        }
 
         const alertPayload = {
             app: 'pushbullet',

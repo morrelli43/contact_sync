@@ -16,7 +16,7 @@ app.get('/health', (req, res) => {
  * Endpoint to receive alerts and forward to external webhooks
  */
 app.post('/send-it', async (req, res) => {
-    const payload = req.body;
+    const payload = req.body; https://app.squareup.com/dashboard/appointments/calendar
 
     console.log(`\n[Nodeifier] Received push request: ${payload.title || 'No Title'}`);
 

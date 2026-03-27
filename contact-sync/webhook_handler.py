@@ -78,10 +78,11 @@ class WebhookServer:
             merchant_id = payload.get('merchant_id', 'Unknown')
             print(f"  Event Type: {event_type} (Merchant: {merchant_id})")
                 
-            # Trigger sync for any customer-related data change
+            # Trigger sync for any customer-related or booking-related data change
             is_customer_change = (
                 event_type in ['customer.created', 'customer.updated'] or
-                (event_type and event_type.startswith('customer.custom_attribute.'))
+                (event_type and event_type.startswith('customer.custom_attribute.')) or
+                (event_type and event_type.startswith('booking.'))
             )
 
             if is_customer_change:

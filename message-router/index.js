@@ -128,17 +128,28 @@ app.post('/submit', async (req, res) => {
         if (!multiJob && scooters.length === 1) {
             const s = scooters[0];
             const label = `${s.make || 'Unknown'} ${s.model || ''}`.trim() || 'Unknown eScooter';
-            const issues = (s.issues || []).join(', ');
-            let servicesText = issues;
-            if (s.issue_extra) {
-                servicesText += ` (${s.issue_extra})`;
+            
+            const issuesArr = s.issues || [];
+            let titleServices = 'Service Requested';
+            if (issuesArr.length > 1) {
+                titleServices = `${issuesArr.length}x Services`;
+            } else if (issuesArr.length === 1) {
+                titleServices = issuesArr[0];
             }
             
-            alertTitle = `${suburb ? suburb + ' - ' : ''}${label} | ${issues || 'Service Requested'}`;
+            let servicesText = issuesArr.map(issue => `- ${issue}`).join('\n');
+            if (s.issue_extra) {
+                servicesText += (servicesText ? '\n' : '') + `- Other: ${s.issue_extra}`;
+            }
+            
+            alertTitle = `${suburb ? suburb + ' - ' : ''}${label} | ${titleServices}`;
             
             lines.push(`${first_name} ${surname}`);
             if (servicesText) lines.push(servicesText);
-            lines.push(number);
+            
+            const phoneClean = number ? number.replace(/\s+/g, '') : '';
+            lines.push(phoneClean ? `[${number}](tel:${phoneClean})` : 'No Phone');
+            
             if (emailAddress) lines.push(emailAddress);
             if (fullAddress) lines.push(fullAddress);
             
@@ -152,19 +163,27 @@ app.post('/submit', async (req, res) => {
             alertTitle = `${suburb ? suburb + ' - ' : ''}${scooters.length}x eScooters`;
             
             lines.push(`${first_name} ${surname}`);
-            lines.push(number);
+            
+            const phoneClean = number ? number.replace(/\s+/g, '') : '';
+            lines.push(phoneClean ? `[${number}](tel:${phoneClean})` : 'No Phone');
+            
             if (emailAddress) lines.push(emailAddress);
             if (fullAddress) lines.push(fullAddress);
             
             scooters.forEach((s, i) => {
                 lines.push('');
                 const label = `${s.make || 'Unknown'} ${s.model || ''}`.trim() || 'Unknown eScooter';
-                const issues = (s.issues || []).join(', ');
-                const extra = s.issue_extra ? ` (${s.issue_extra})` : '';
+                
+                const issuesArr = s.issues || [];
+                let servicesText = issuesArr.map(issue => `- ${issue}`).join('\n');
+                if (s.issue_extra) {
+                    servicesText += (servicesText ? '\n' : '') + `- Other: ${s.issue_extra}`;
+                }
+                
                 const photos = scooterPhotos[i] || [];
                 
                 lines.push(`${i + 1}. ${label}`);
-                if (issues || extra) lines.push(`${issues}${extra}`);
+                if (servicesText) lines.push(servicesText);
                 
                 if (photos.length > 0) {
                     const photoLinks = photos.map(p => `[Image-${p.num}](${p.url})`).join(', ');

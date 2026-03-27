@@ -115,6 +115,7 @@ services:
       - EMAIL_SERVICE_URL=http://email-service:4311/send-it
       - NODEIFIER_URL=http://nodeifier:4312/send-it
       - OPS_FORWARDER_URL=http://ops-forwarder:4313/send-it
+      - CALENDAR_SYNC_URL=http://calendar-sync:5001/webhooks/square
       - DONTKNOW_URL=http://dontknowescooter:4314
       - DONTKNOW_PUBLIC_URL=${DONTKNOW_PUBLIC_URL}
       - PHOTOS_PUBLIC_BASE_URL=${PHOTOS_PUBLIC_BASE_URL}

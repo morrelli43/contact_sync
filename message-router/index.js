@@ -4,7 +4,12 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json());
+// Capture raw body so we can verify the Square HMAC signature downstream
+app.use(express.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(cors());
 
 // Health check endpoint
@@ -157,6 +162,41 @@ app.post('/submit', async (req, res) => {
             .then(() => console.log('✅ Routed to Nodeifier'))
             .catch(err => console.error('⚠️ Nodeifier routing failed:', err.message));
     })();
+});
+
+/**
+ * Square Webhook Fanout
+ * Receives Square webhooks and routes them to sub-processes (contact-sync, calendar-sync)
+ */
+app.post('/webhooks/square', async (req, res) => {
+    // Respond immediately to Square
+    res.status(200).json({ status: 'routing' });
+
+    console.log(`\n[Message Router] Received Square Webhook. Fanning out...`);
+
+    const rawData = req.rawBody || req.body;
+    
+    // Pass along whatever headers came in, especially the 'x-square-hmacsha256-signature'
+    const signature = req.headers['x-square-hmacsha256-signature'] || '';
+    
+    const headers = { 
+        'Content-Type': 'application/json',
+        'x-square-hmacsha256-signature': signature 
+    };
+
+    // Define internal endpoints
+    const contactSyncSquareUrl = (process.env.CONTACT_SYNC_URL || 'http://contact-sync:4310/send-it').replace('/send-it', '/webhooks/square');
+    const calendarSyncSquareUrl = process.env.CALENDAR_SYNC_URL || 'http://calendar-sync:5001/webhooks/square';
+
+    // Route to Contact Sync
+    axios.post(contactSyncSquareUrl, rawData, { headers })
+        .then(() => console.log('✅ Square Webhook -> Contact-Sync'))
+        .catch(err => console.error('⚠️ Contact-Sync Square Webhook failed:', err.message));
+
+    // Route to Calendar Sync
+    axios.post(calendarSyncSquareUrl, rawData, { headers })
+        .then(() => console.log('✅ Square Webhook -> Calendar-Sync'))
+        .catch(err => console.error('⚠️ Calendar-Sync Square Webhook failed:', err.message));
 });
 
 const PORT = process.env.PORT || 4300;

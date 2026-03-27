@@ -29,6 +29,28 @@ class SquareBookingConnector:
             access_token=self.access_token,
             environment='production'
         )
+        self.attr_def_cache = None
+
+    def get_custom_attribute_definitions(self) -> dict:
+        """Fetch and cache custom attribute definitions to map keys to names."""
+        if self.attr_def_cache is not None:
+            return self.attr_def_cache
+
+        self.attr_def_cache = {}
+        try:
+            if hasattr(self.client, 'customer_custom_attributes'):
+                result = self.client.customer_custom_attributes.list_customer_custom_attribute_definitions()
+                if result.is_success():
+                    defs = result.body.get('custom_attribute_definitions', [])
+                    for d in defs:
+                        k = d.get('key')
+                        n = d.get('name', '')
+                        if k:
+                            self.attr_def_cache[k] = n
+        except Exception as e:
+            print(f"  ⚠️ Warning: Could not fetch custom attribute definitions: {e}")
+            
+        return self.attr_def_cache
         
     def fetch_upcoming_bookings(self, limit: int = 100) -> List[Booking]:
         """Fetch upcoming bookings from Square."""

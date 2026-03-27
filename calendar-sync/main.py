@@ -186,13 +186,16 @@ class SyncEngine:
         if booking.customer_id:
             attrs = self.square.get_customer_custom_attributes(booking.customer_id)
             if attrs:
-                # Look for eScooter1 (key often maps to 'eScooter1' slug)
+                # We need to map keys like 'ctm_abcd' to their real names like 'eScooter 1'
+                defs = self.square.get_custom_attribute_definitions()
+                
                 # We look for any attribute with "escooter" in the name or key
                 for key, attr in attrs.items():
-                    if 'escooter' in key.lower():
+                    name = defs.get(key, '')
+                    if 'escooter' in key.lower() or 'escooter' in name.lower():
                         val = attr.get('value') or attr.get('string_value')
                         if val:
-                            escooter = val
+                            escooter = str(val)
                             break
         
         # Fallback to extraction from notes

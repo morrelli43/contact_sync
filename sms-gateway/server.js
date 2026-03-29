@@ -12,6 +12,11 @@ const API_KEY = process.env.SMS_GATEWAY_API_KEY;
 const OPS_API_KEY = process.env.OPS_API_KEY;
 const WEB_PORTAL_INCOMING_URL = process.env.WEB_PORTAL_INCOMING_URL;
 
+// Phone's local HTTP API (the NanoHTTPD server running on the handset)
+// Can be set via env var; otherwise discovered from the WebSocket peer address on connect
+const PHONE_API_URL = process.env.PHONE_API_URL || null;
+let discoveredPhoneApiUrl = null; // Set when device connects
+
 if (!API_KEY) {
   console.error('❌ SMS_GATEWAY_API_KEY is not defined in environment variables');
   process.exit(1);
@@ -64,6 +69,18 @@ server.on('upgrade', (request, socket, head) => {
     ws.isAlive = true;
     devices.set(deviceId, ws);
     console.log(`✅ Device connected: ${deviceId}`);
+
+    // Discover phone's HTTP API URL from the peer address or env override
+    if (PHONE_API_URL) {
+      discoveredPhoneApiUrl = PHONE_API_URL;
+    } else {
+      // Extract peer IP from socket - this is the phone's LAN IP
+      const peerIp = socket.remoteAddress?.replace('::ffff:', '');
+      if (peerIp && peerIp !== '127.0.0.1') {
+        discoveredPhoneApiUrl = `http://${peerIp}:4330`;
+        console.log(`📱 Discovered phone HTTP API at: ${discoveredPhoneApiUrl}`);
+      }
+    }
 
     ws.on('pong', () => {
       ws.isAlive = true;
@@ -156,6 +173,63 @@ app.post('/api/send-sms', (req, res) => {
   } catch (err) {
     console.error(`❌ Error sending to device ${deviceId}:`, err.message);
     res.status(500).json({ error: 'Failed to relay message to device' });
+  }
+});
+
+/**
+ * Proxy: GET /api/conversations -> Phone HTTP API
+ * Allows the Operations Dashboard to retrieve all SMS threads from the phone.
+ */
+app.get('/api/conversations', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const phoneUrl = discoveredPhoneApiUrl || PHONE_API_URL;
+  if (!phoneUrl) {
+    return res.status(503).json({ error: 'Phone not connected or PHONE_API_URL not set' });
+  }
+
+  try {
+    console.log(`📲 Proxying GET /api/conversations -> ${phoneUrl}`);
+    const response = await axios.get(`${phoneUrl}/api/conversations`, {
+      headers: { 'Authorization': `Bearer ${API_KEY}` },
+      timeout: 10000
+    });
+    res.json(response.data);
+  } catch (err) {
+    console.error(`❌ Failed to proxy conversations: ${err.message}`);
+    res.status(502).json({ error: 'Failed to reach phone HTTP API', details: err.message });
+  }
+});
+
+/**
+ * Proxy: GET /api/messages -> Phone HTTP API
+ * Forwards threadId, limit, offset, includeMms query params.
+ */
+app.get('/api/messages', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const phoneUrl = discoveredPhoneApiUrl || PHONE_API_URL;
+  if (!phoneUrl) {
+    return res.status(503).json({ error: 'Phone not connected or PHONE_API_URL not set' });
+  }
+
+  const query = new URLSearchParams(req.query).toString();
+  try {
+    console.log(`📲 Proxying GET /api/messages?${query} -> ${phoneUrl}`);
+    const response = await axios.get(`${phoneUrl}/api/messages?${query}`, {
+      headers: { 'Authorization': `Bearer ${API_KEY}` },
+      timeout: 15000
+    });
+    res.json(response.data);
+  } catch (err) {
+    console.error(`❌ Failed to proxy messages: ${err.message}`);
+    res.status(502).json({ error: 'Failed to reach phone HTTP API', details: err.message });
   }
 });
 

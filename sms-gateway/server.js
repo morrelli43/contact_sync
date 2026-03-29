@@ -74,8 +74,8 @@ server.on('upgrade', (request, socket, head) => {
         const data = JSON.parse(message);
         console.log(`📩 Message from device ${deviceId}:`, data);
 
-        // Always attempt to forward the notification
-        const targetUrl = WEB_PORTAL_INCOMING_URL || 'http://onya-operations-live-app:3000/api/webhooks/sms';
+        // Force the URL directly to the Operations App on the docker internal network
+        const targetUrl = 'http://onya-operations-live-app:3000/api/webhooks/sms';
         try {
           // Map device payload to Onyascoot Operations format, but preserve everything!
           // This prevents complete rejection if the Android app schema changes.
@@ -93,10 +93,17 @@ server.on('upgrade', (request, socket, head) => {
             headers['Authorization'] = `Bearer ${OPS_API_KEY}`;
           }
 
-          await axios.post(targetUrl, forwardData, { headers, timeout: 5000 });
-          console.log(`🚀 Forwarded inbound SMS to web portal: ${targetUrl}`);
+          try {
+            await axios.post(targetUrl, forwardData, { headers, timeout: 5000 });
+            console.log(`🚀 Forwarded inbound SMS to internal router: ${targetUrl}`);
+          } catch(firstErr) {
+            console.error(`⚠️ Internal DNS failed (${targetUrl}), trying public interface: 172.17.43.12:3010: ${firstErr.message}`);
+            // Let's try the direct public-exposed Docker interface as an absolute foolproof fallback!
+            await axios.post('http://172.17.43.12:3010/api/webhooks/sms', forwardData, { headers, timeout: 5000 });
+            console.log(`🚀 Forwarded inbound SMS to external interface: http://172.17.43.12:3010/api/webhooks/sms`);
+          }
         } catch (err) {
-          console.error(`❌ Error forwarding to web portal (${targetUrl}): ${err.message}`);
+          console.error(`❌ Error forwarding inbound SMS: ${err.message}`);
         }
 
       } catch (err) {

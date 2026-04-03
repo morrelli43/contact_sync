@@ -135,12 +135,6 @@ app.post('/submit', async (req, res) => {
             } else if (issuesArr.length === 1) {
                 titleServices = issuesArr[0];
             }
-            // Remove 'Other...' and add Repair/Notes at the start if present
-            let filteredIssues = issuesArr.filter(issue => issue.toLowerCase() !== 'other');
-            let servicesText = filteredIssues.map(issue => `- ${issue}`).join('\n');
-            if (s.issue_extra) {
-                servicesText = `- Repair/Notes: ${s.issue_extra}` + (servicesText ? '\n' + servicesText : '');
-            }
             alertTitle = `${suburb ? suburb + ' - ' : ''}${label} | ${titleServices}`;
             lines.push(`${first_name} ${surname}`);
             if (servicesText) lines.push(servicesText);
@@ -151,6 +145,22 @@ app.post('/submit', async (req, res) => {
             } else {
                 lines.push('No Phone');
             }
+                // Remove 'Other...' and add Repair/Notes as last item if present
+                let filteredIssues = issuesArr.filter(issue => issue.toLowerCase() !== 'other');
+                let servicesText = filteredIssues.map(issue => `- ${issue}`).join('\n');
+                alertTitle = `${suburb ? suburb + ' - ' : ''}${label} | ${titleServices}`;
+                lines.push(`${first_name} ${surname}`);
+                if (servicesText) lines.push(servicesText);
+                if (s.issue_extra) {
+                    lines.push(`- Repair/Notes: ${s.issue_extra}`);
+                }
+                // Format phone number as clickable link
+                const phoneClean = number ? number.replace(/\s+/g, '') : '';
+                if (phoneClean) {
+                    lines.push(`<a href="tel:${phoneClean}">${phoneClean}</a>`);
+                } else {
+                    lines.push('No Phone');
+                }
             if (emailAddress) lines.push(emailAddress);
             if (fullAddress) lines.push(fullAddress);
             const photos = scooterPhotos[0] || [];

@@ -144,15 +144,19 @@ app.post('/submit', async (req, res) => {
             alertTitle = `${suburb ? suburb + ' - ' : ''}${label} | ${titleServices}`;
             lines.push(`${first_name} ${surname}`);
             if (servicesText) lines.push(servicesText);
-            // Show just the plain number (Telegram will auto-link)
+            // Format phone number as clickable link
             const phoneClean = number ? number.replace(/\s+/g, '') : '';
-            lines.push(phoneClean || 'No Phone');
+            if (phoneClean) {
+                lines.push(`<a href=\"tel:${phoneClean}\">${phoneClean}</a>`);
+            } else {
+                lines.push('No Phone');
+            }
             if (emailAddress) lines.push(emailAddress);
             if (fullAddress) lines.push(fullAddress);
             const photos = scooterPhotos[0] || [];
             if (photos.length > 0) {
                 lines.push('');
-                const photoLinks = photos.map(p => `[Image-${p.num}](${p.url})`).join(', ');
+                const photoLinks = photos.map((p, idx) => `<a href=\"${p.url}\">Unknown-${idx + 1}</a>`).join(', ');
                 lines.push(`Photos: ${photoLinks}`);
             }
         } else {
@@ -160,7 +164,11 @@ app.post('/submit', async (req, res) => {
             lines.push(`${first_name} ${surname}`);
             // Show just the plain number (Telegram will auto-link)
             const phoneClean = number ? number.replace(/\s+/g, '') : '';
-            lines.push(phoneClean || 'No Phone');
+            if (phoneClean) {
+                lines.push(`<a href=\"tel:${phoneClean}\">${phoneClean}</a>`);
+            } else {
+                lines.push('No Phone');
+            }
             if (emailAddress) lines.push(emailAddress);
             if (fullAddress) lines.push(fullAddress);
             scooters.forEach((s, i) => {
@@ -177,7 +185,7 @@ app.post('/submit', async (req, res) => {
                 if (servicesText) lines.push(servicesText);
                 const photos = scooterPhotos[i] || [];
                 if (photos.length > 0) {
-                    const photoLinks = photos.map(p => `[Image-${p.num}](${p.url})`).join(', ');
+                    const photoLinks = photos.map((p, idx) => `<a href=\"${p.url}\">Unknown-${idx + 1}</a>`).join(', ');
                     lines.push(`Photos: ${photoLinks}`);
                 }
             });

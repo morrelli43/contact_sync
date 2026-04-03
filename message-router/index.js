@@ -128,7 +128,6 @@ app.post('/submit', async (req, res) => {
         if (!multiJob && scooters.length === 1) {
             const s = scooters[0];
             const label = `${s.make || 'Unknown'} ${s.model || ''}`.trim() || 'Unknown eScooter';
-            
             const issuesArr = s.issues || [];
             let titleServices = 'Service Requested';
             if (issuesArr.length > 1) {
@@ -136,23 +135,20 @@ app.post('/submit', async (req, res) => {
             } else if (issuesArr.length === 1) {
                 titleServices = issuesArr[0];
             }
-            
-            let servicesText = issuesArr.map(issue => `- ${issue}`).join('\n');
+            let servicesText = issuesArr
+                .filter(issue => issue.toLowerCase() !== 'other')
+                .map(issue => `- ${issue}`).join('\n');
             if (s.issue_extra) {
-                servicesText += (servicesText ? '\n' : '') + `- Other: ${s.issue_extra}`;
+                servicesText += (servicesText ? '\n' : '') + `- ${s.issue_extra}`;
             }
-            
             alertTitle = `${suburb ? suburb + ' - ' : ''}${label} | ${titleServices}`;
-            
             lines.push(`${first_name} ${surname}`);
             if (servicesText) lines.push(servicesText);
-            
+            // Show just the plain number (Telegram will auto-link)
             const phoneClean = number ? number.replace(/\s+/g, '') : '';
-            lines.push(phoneClean ? `[${number}](tel:${phoneClean})` : 'No Phone');
-            
+            lines.push(phoneClean || 'No Phone');
             if (emailAddress) lines.push(emailAddress);
             if (fullAddress) lines.push(fullAddress);
-            
             const photos = scooterPhotos[0] || [];
             if (photos.length > 0) {
                 lines.push('');
@@ -161,30 +157,25 @@ app.post('/submit', async (req, res) => {
             }
         } else {
             alertTitle = `${suburb ? suburb + ' - ' : ''}${scooters.length}x eScooters`;
-            
             lines.push(`${first_name} ${surname}`);
-            
+            // Show just the plain number (Telegram will auto-link)
             const phoneClean = number ? number.replace(/\s+/g, '') : '';
-            lines.push(phoneClean ? `[${number}](tel:${phoneClean})` : 'No Phone');
-            
+            lines.push(phoneClean || 'No Phone');
             if (emailAddress) lines.push(emailAddress);
             if (fullAddress) lines.push(fullAddress);
-            
             scooters.forEach((s, i) => {
                 lines.push('');
                 const label = `${s.make || 'Unknown'} ${s.model || ''}`.trim() || 'Unknown eScooter';
-                
                 const issuesArr = s.issues || [];
-                let servicesText = issuesArr.map(issue => `- ${issue}`).join('\n');
+                let servicesText = issuesArr
+                    .filter(issue => issue.toLowerCase() !== 'other')
+                    .map(issue => `- ${issue}`).join('\n');
                 if (s.issue_extra) {
-                    servicesText += (servicesText ? '\n' : '') + `- Other: ${s.issue_extra}`;
+                    servicesText += (servicesText ? '\n' : '') + `- ${s.issue_extra}`;
                 }
-                
-                const photos = scooterPhotos[i] || [];
-                
                 lines.push(`${i + 1}. ${label}`);
                 if (servicesText) lines.push(servicesText);
-                
+                const photos = scooterPhotos[i] || [];
                 if (photos.length > 0) {
                     const photoLinks = photos.map(p => `[Image-${p.num}](${p.url})`).join(', ');
                     lines.push(`Photos: ${photoLinks}`);
@@ -193,7 +184,7 @@ app.post('/submit', async (req, res) => {
         }
 
         const alertPayload = {
-            app: 'pushbullet',
+            app: 'telegram',
             target: 'dandroid',
             title: alertTitle,
             body: lines.join('\n')

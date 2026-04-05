@@ -165,28 +165,31 @@ app.post('/photo-claim', express.json(), (req, res) => {
     const last  = (surname   || 'unknown').replace(/[^a-zA-Z0-9]/g, '');
     const ph    = (phone     || 'unknown').replace(/[^a-zA-Z0-9]/g, '');
 
+    const claimedFilenames = [];
     session.photos.forEach((filename, i) => {
         const ext     = path.extname(filename);
         const newName = `${first}_${last}_${ph}_scooter${scooterNum}_qr${i + 1}_${Date.now()}${ext}`;
         try {
             fs.renameSync(path.join(uploadDir, filename), path.join(uploadDir, newName));
             session.photos[i] = newName;
+            claimedFilenames.push(newName);
         } catch (e) {
             console.error('Rename error:', e.message);
         }
     });
 
     console.log(`📸 QR photos claimed for ${first} ${last} (${ph}), scooter ${scooterNum}`);
-    res.json({ success: true });
+    res.json({ success: true, filenames: claimedFilenames });
 });
 
 // Direct mobile upload — saves with customer name + phone in filename
 app.post('/upload-photos', photoUpload.any(), (req, res) => {
     const { first_name = '', surname = '', phone = '' } = req.body;
     const count = req.files ? req.files.length : 0;
+    const filenames = req.files ? req.files.map(f => f.filename) : [];
     console.log(`📸 ${count} photo(s) uploaded for ${first_name} ${surname} (${phone})`);
     if (req.files) req.files.forEach(f => console.log(`   → ${f.filename}`));
-    res.json({ success: true, count });
+    res.json({ success: true, count, filenames });
 });
 
 // ---------------------------------------------------------------------------

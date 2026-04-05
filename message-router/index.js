@@ -100,11 +100,10 @@ app.post('/submit', async (req, res) => {
     (async () => {
         // Extract photo URLs from the frontend JSON payload
         const scooterPhotos = scooters.map(s => {
-            const urls = [...(s.model_photo_urls || []), ...(s.issue_photo_urls || [])];
-            return urls.map((url, i) => ({
-                num: i + 1,
-                url: url
-            }));
+            return {
+                modelUrls: s.model_photo_urls || [],
+                issueUrls: s.issue_photo_urls || []
+            };
         });
 
         const multiJob = scooters.length > 1;
@@ -130,8 +129,17 @@ app.post('/submit', async (req, res) => {
             let filteredIssues = issuesArr.filter(issue => issue.toLowerCase() !== 'other');
             let servicesText = filteredIssues.map(issue => `- ${issue}`).join('\n');
             if (servicesText) lines.push(servicesText);
-            if (s.issue_extra) {
-                lines.push(`- Repair/Notes: ${s.issue_extra}`);
+            
+            const sPhotos = scooterPhotos[0];
+            const issueLinks = sPhotos.issueUrls.map((url, idx) => `<a href="${url}">issue-${idx + 1}</a>`).join(', ');
+
+            if (s.issue_extra || issueLinks) {
+                let noteLine = `- Repair/Notes: ${s.issue_extra || ''}`;
+                if (issueLinks) {
+                    // if issue_extra exists, add a space before the links, otherwise just the links
+                    noteLine = s.issue_extra ? `${noteLine} (${issueLinks})` : `- Repair/Notes: ${issueLinks}`;
+                }
+                lines.push(noteLine);
             }
             // Format phone number as clickable link
             const phoneClean = number ? number.replace(/\s+/g, '') : '';
@@ -142,10 +150,10 @@ app.post('/submit', async (req, res) => {
             }
             if (emailAddress) lines.push(emailAddress);
             if (fullAddress) lines.push(fullAddress);
-            const photos = scooterPhotos[0] || [];
-            if (photos.length > 0) {
+            
+            if (sPhotos.modelUrls.length > 0) {
                 lines.push('');
-                const photoLinks = photos.map((p, idx) => `<a href="${p.url}">eScooter1-${idx + 1}</a>`).join(', ');
+                const photoLinks = sPhotos.modelUrls.map((url, idx) => `<a href="${url}">eScooter1-${idx + 1}</a>`).join(', ');
                 lines.push(`Identify: ${photoLinks}`);
             }
         } else {
@@ -166,14 +174,22 @@ app.post('/submit', async (req, res) => {
                 const issuesArr = s.issues || [];
                 let filteredIssues = issuesArr.filter(issue => issue.toLowerCase() !== 'other');
                 let servicesText = filteredIssues.map(issue => `- ${issue}`).join('\n');
-                if (s.issue_extra) {
-                    servicesText = `- Repair/Notes: ${s.issue_extra}` + (servicesText ? '\n' + servicesText : '');
+                
+                const sPhotos = scooterPhotos[i];
+                const issueLinks = sPhotos.issueUrls.map((url, idx) => `<a href="${url}">issue-${idx + 1}</a>`).join(', ');
+
+                if (s.issue_extra || issueLinks) {
+                    let noteText = `- Repair/Notes: ${s.issue_extra || ''}`;
+                    if (issueLinks) {
+                        noteText = s.issue_extra ? `${noteText} (${issueLinks})` : `- Repair/Notes: ${issueLinks}`;
+                    }
+                    servicesText = noteText + (servicesText ? '\n' + servicesText : '');
                 }
                 lines.push(`${i + 1}. ${label}`);
                 if (servicesText) lines.push(servicesText);
-                const photos = scooterPhotos[i] || [];
-                if (photos.length > 0) {
-                    const photoLinks = photos.map((p, idx) => `<a href="${p.url}">eScooter${i + 1}-${idx + 1}</a>`).join(', ');
+                
+                if (sPhotos.modelUrls.length > 0) {
+                    const photoLinks = sPhotos.modelUrls.map((url, idx) => `<a href="${url}">eScooter${i + 1}-${idx + 1}</a>`).join(', ');
                     lines.push(`Identify: ${photoLinks}`);
                 }
             });

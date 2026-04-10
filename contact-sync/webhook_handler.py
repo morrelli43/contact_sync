@@ -22,6 +22,7 @@ class WebhookServer:
         self.app.route('/sync', methods=['GET', 'POST'])(self.trigger_sync)
         self.app.route('/send-it', methods=['POST', 'OPTIONS'])(self.handle_webform)
         self.app.route('/webhooks/square', methods=['POST'])(self.handle_square)
+        self.app.route('/cleanup-duplicates', methods=['GET', 'POST'])(self.trigger_cleanup)
 
     def health_check(self):
         return jsonify({"status": "ok", "version": "v2.4.0"}), 200
@@ -31,6 +32,19 @@ class WebhookServer:
         import threading
         threading.Thread(target=self.engine.sync_all).start()
         return jsonify({"status": "success", "message": "Manual sync triggered in background"}), 200
+
+    def trigger_cleanup(self):
+        """Manually trigger Google contacts deduplication in the background."""
+        import threading
+        def _run_cleanup():
+            try:
+                import cleanup_duplicates
+                cleanup_duplicates.clean_google_duplicates()
+            except Exception as e:
+                print(f"Error in cleanup background task: {e}")
+                
+        threading.Thread(target=_run_cleanup, daemon=True).start()
+        return jsonify({"status": "success", "message": "Google Contacts duplicate cleanup started in the background. It may take 15-20 minutes to complete. Check container logs for progress."}), 200
 
     def handle_webform(self):
         """Immediately parse and drop webforms into the sync engine memory."""

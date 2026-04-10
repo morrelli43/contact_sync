@@ -1,10 +1,13 @@
 import time
+import os
 from google_connector import GoogleContactsConnector
 from googleapiclient.errors import HttpError
 
 def clean_google_duplicates():
     print("Connecting to Google Contacts...")
-    connector = GoogleContactsConnector()
+    cred_file = os.getenv('GOOGLE_CREDENTIALS_FILE', 'credentials.json')
+    token_file = os.getenv('GOOGLE_TOKEN_FILE', 'token.json')
+    connector = GoogleContactsConnector(credentials_file=cred_file, token_file=token_file)
     connector.authenticate()
     
     print("Fetching contacts. This could take a while for 4000+ contacts...")

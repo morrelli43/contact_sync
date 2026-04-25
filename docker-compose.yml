@@ -140,6 +140,9 @@ services:
       - OPS_API_KEY=${OPS_API_KEY}
       - WEB_PORTAL_INCOMING_URL=${WEB_PORTAL_INCOMING_URL}
       - PORT=4330
+      - DATA_DIR=/app/data
+    volumes:
+      - ${DOCKER_FOLDER_WEBFILES:-.}/sms-gateway-data:/app/data
     ports:
       - "${SMS_GATEWAY_PORT:-4330}:4330"
 

@@ -81,6 +81,8 @@ services:
       - PORT=4313
       - OPS_WEBHOOK_URL=${OPS_WEBHOOK_URL}
       - OPS_API_KEY=${OPS_API_KEY}
+      - GOOGLEMAPSAPI_SERVICE_API_KEY=${GOOGLEMAPSAPI_SERVICE_API_KEY}
+      - GOOGLE_MAPS_SERVICE_URL=http://googlemapsapi:4315
     ports:
       - "${OPS_FORWARDER_PORT:-4313}:4313"
 

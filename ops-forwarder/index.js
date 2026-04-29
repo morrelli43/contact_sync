@@ -18,10 +18,77 @@ app.get('/health', (req, res) => {
  *   address_line_1, suburb, state, postcode, country,
  *   escooter_make, escooter_model, issue, issue_extra
  */
+/**
+ * Checks if a suburb has a callout fee set in the Operations site.
+ * If not, fetches distance from googlemapsapi service and creates it.
+ */
+async function ensureCalloutFee(suburb) {
+    if (!suburb) return;
+
+    const opsBaseUrl = (process.env.OPS_WEBHOOK_URL || 'http://onya-operations-live-app:3000/api/webhooks/customer')
+        .replace('/api/webhooks/customer', '');
+    const calloutFeesUrl = `${opsBaseUrl}/api/callout-fees`;
+    const googleMapsUrl = process.env.GOOGLE_MAPS_SERVICE_URL || 'http://googlemapsapi:4315';
+    const googleMapsKey = process.env.GOOGLEMAPSAPI_SERVICE_API_KEY;
+
+    const apiKey = process.env.OPS_API_KEY;
+    const authHeaders = apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
+
+    try {
+        // 1. Check if suburb already exists
+        console.log(`[Ops-Forwarder] Checking callout fee for suburb: ${suburb}`);
+        const { data: fees } = await axios.get(calloutFeesUrl, { headers: authHeaders });
+        const exists = fees.some(f => f.suburb.toLowerCase() === suburb.toLowerCase());
+
+        if (exists) {
+            console.log(`[Ops-Forwarder] Callout fee already exists for ${suburb}`);
+            return;
+        }
+
+        console.log(`[Ops-Forwarder] Callout fee missing for ${suburb}. Fetching travel data...`);
+
+        // 2. Get distance/duration from googlemapsapi service
+        const { data: searchData } = await axios.post(`${googleMapsUrl}/search`, {
+            destination: suburb
+        }, {
+            headers: { 'x-api-key': googleMapsKey }
+        });
+
+        const dist = (searchData.distance.value / 1000).toFixed(2);
+        const dur = Math.ceil(searchData.travelTime.value / 60);
+
+        console.log(`[Ops-Forwarder] Creating callout fee for ${suburb}: ${dist}km, ${dur}mins`);
+
+        // 3. Create callout fee on Operations site
+        await axios.post(calloutFeesUrl, {
+            suburb,
+            distance: dist,
+            duration: dur
+        }, {
+            headers: { 'Content-Type': 'application/json', ...authHeaders }
+        });
+
+        console.log(`✅ Successfully created callout fee for ${suburb}`);
+    } catch (error) {
+        console.error(`❌ Failed to ensure callout fee for ${suburb}:`, error.message);
+        // We don't want to block the main form submission if this fails
+    }
+}
+
 app.post('/send-it', async (req, res) => {
     const payload = req.body;
 
     console.log(`\n[Ops-Forwarder] Received submission: ${payload.first_name || ''} ${payload.surname || ''}`);
+
+    // Ensure callout fee exists for the suburb
+    if (payload.suburb) {
+        // We don't await this to avoid delaying the response, 
+        // but the user said "please make sure that is added", 
+        // so maybe we SHOULD await it? 
+        // The request says "make sure the callout price is ready for new form submissions".
+        // If we await it, it ensures it's done before forwarding.
+        await ensureCalloutFee(payload.suburb);
+    }
 
     const targetUrl = process.env.OPS_WEBHOOK_URL || 'http://onya-operations-live-app:3000/api/webhooks/customer';
 

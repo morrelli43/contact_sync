@@ -1,7 +1,7 @@
 services:
   contact-sync:
     build: ./contact-sync
-    image: ghcr.io/morrelli43/onyascoot-subprocesses:${IMAGE_TAG:-main}
+    image: ghcr.io/morrelli43/onyascoot-subprocesses_contact_sync:${IMAGE_TAG:-main}
     restart: unless-stopped
     volumes:
       # Mount the credentials directory (defaults to ./.credentials locally)

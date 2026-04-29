@@ -47,7 +47,7 @@ jobs:
         service: ${{ fromJSON(needs.filter.outputs.services) }}
         include:
           - service: contact-sync
-            image_suffix: ""
+            image_suffix: "_contact_sync"
           - service: calendar-sync
             image_suffix: "_calendar_sync"
           - service: email-service
